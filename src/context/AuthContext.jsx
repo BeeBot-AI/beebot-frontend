@@ -1,42 +1,77 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
+import axios from 'axios';
+import config from '../config';
 
 const AuthContext = createContext();
 
 export const AuthProvider = ({ children }) => {
     const [user, setUser] = useState(null);
-    const [token, setToken] = useState(localStorage.getItem('beebot_token'));
+    const [hasBusinessProfile, setHasBusinessProfile] = useState(null); // null = unknown
     const [isLoading, setIsLoading] = useState(true);
 
-    useEffect(() => {
-        // In a full production app, you might want to hit a /api/auth/me route here
-        // to validate the token and get fresh user details.
-        // For now, if we have a token, we parse the basic info if available or just assume logged in.
-        const storedUser = localStorage.getItem('beebot_user');
-        if (token && storedUser) {
-            setUser(JSON.parse(storedUser));
-        } else {
-            setToken(null);
-            localStorage.removeItem('beebot_token');
+    const checkAuth = async () => {
+        try {
+            const res = await axios.get(`${config.API_BASE_URL}/auth/me`, { withCredentials: true });
+            if (res.data.success) {
+                setUser(res.data.user);
+                // After confirming user, check if they have a business profile
+                await checkBusinessProfile();
+            } else {
+                setUser(null);
+                setHasBusinessProfile(null);
+            }
+        } catch (error) {
+            // 401 is expected when not logged in
+            setUser(null);
+            setHasBusinessProfile(null);
+        } finally {
+            setIsLoading(false);
         }
-        setIsLoading(false);
-    }, [token]);
+    };
 
-    const login = (newToken, userData) => {
-        setToken(newToken);
+    const checkBusinessProfile = async () => {
+        try {
+            const res = await axios.get(`${config.API_BASE_URL}/business/me`, { withCredentials: true });
+            setHasBusinessProfile(res.data.hasBusinessProfile);
+        } catch {
+            setHasBusinessProfile(false);
+        }
+    };
+
+    useEffect(() => {
+        checkAuth();
+    }, []);
+
+    const login = (userData) => {
         setUser(userData);
-        localStorage.setItem('beebot_token', newToken);
-        localStorage.setItem('beebot_user', JSON.stringify(userData));
+        // After login, check business profile
+        checkBusinessProfile();
     };
 
-    const logout = () => {
-        setToken(null);
-        setUser(null);
-        localStorage.removeItem('beebot_token');
-        localStorage.removeItem('beebot_user');
+    const logout = async () => {
+        try {
+            await axios.post(`${config.API_BASE_URL}/auth/logout`, {}, { withCredentials: true });
+            setUser(null);
+            setHasBusinessProfile(null);
+        } catch (error) {
+            console.error('Logout error', error);
+        }
     };
+
+    const setBusinessProfile = (val) => setHasBusinessProfile(val);
 
     return (
-        <AuthContext.Provider value={{ user, token, isLoading, login, logout }}>
+        <AuthContext.Provider value={{
+            user,
+            isAuthenticated: !!user,
+            isLoading,
+            hasBusinessProfile,
+            login,
+            logout,
+            checkAuth,
+            refetchUser: checkAuth,
+            setBusinessProfile
+        }}>
             {children}
         </AuthContext.Provider>
     );
