@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Routes, Route, NavLink, useNavigate, useLocation } from 'react-router-dom';
 import { LayoutDashboard, Database, MessageSquare, Settings, PlayCircle, CreditCard, Code, LogOut, Menu, X, User } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
@@ -247,11 +247,6 @@ function Dashboard() {
             <Route path="install" element={
               <InstallTab
                 apiKey={apiKey}
-                embedScript={
-                  apiKey
-                    ? `<script src="${config.WIDGET_URL}" data-api-key="${apiKey}" data-api-url="${config.API_BASE_URL}" defer></script>`
-                    : ''
-                }
                 businessId={businessData?._id}
               />
             } />

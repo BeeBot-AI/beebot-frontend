@@ -44,7 +44,7 @@ export default function PlaygroundTab({ businessId, bot }) {
             if (res.ok) {
                 setMessages(prev => [...prev, { role: 'assistant', content: data.response }]);
             } else {
-                setMessages(prev => [...prev, { role: 'assistant', content: `Error: ${data.message || 'Failed to get response'}` }]);
+                setMessages(prev => [...prev, { role: 'assistant', content: `Error: ${data.error || data.message || 'Failed to get response'}` }]);
             }
         } catch (error) {
             setMessages(prev => [...prev, { role: 'assistant', content: 'Connection error while reaching the server.' }]);
