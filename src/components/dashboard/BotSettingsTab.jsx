@@ -1,7 +1,22 @@
-import React, { useState } from 'react';
-import { Bot, CheckCircle, Save, Plus, X, Palette } from 'lucide-react';
+import React, { useState, useRef, useCallback } from 'react';
+import { Bot, CheckCircle, Save, Plus, X, Palette, Copy } from 'lucide-react';
 import axios from 'axios';
 import config from '../../config';
+
+const COLOR_PRESETS = [
+    { hex: '#FDD017', label: 'BeeBot Gold' },
+    { hex: '#000000', label: 'Black' },
+    { hex: '#FFFFFF', label: 'White' },
+    { hex: '#1a73e8', label: 'Google Blue' },
+    { hex: '#34a853', label: 'Google Green' },
+    { hex: '#ea4335', label: 'Google Red' },
+    { hex: '#FF6B35', label: 'Orange' },
+    { hex: '#7B2FBE', label: 'Purple' },
+    { hex: '#00BCD4', label: 'Cyan' },
+    { hex: '#FF4081', label: 'Pink' },
+    { hex: '#4CAF50', label: 'Green' },
+    { hex: '#FF9800', label: 'Amber' },
+];
 
 export default function BotSettingsTab({ bot }) {
     const [chatbotForm, setChatbotForm] = useState(bot || {
@@ -9,12 +24,15 @@ export default function BotSettingsTab({ bot }) {
         bot_tone: 'friendly',
         welcome_message: 'Hi there! How can I help you today?',
         fallback_message: "I couldn't find an answer to that. Please contact support.",
-        primary_color: '#000000',
+        primary_color: '#FDD017',
         conversation_starters: [],
     });
 
     const [newStarter, setNewStarter] = useState('');
     const [saveState, setSaveState] = useState('idle'); // idle | saving | success | error
+    const [colorToast, setColorToast] = useState(false);
+    const [hexInputVal, setHexInputVal] = useState(bot?.primary_color || '#FDD017');
+    const colorDebounceRef = useRef(null);
 
     const handleSaveChatbot = async () => {
         setSaveState('saving');
@@ -27,6 +45,32 @@ export default function BotSettingsTab({ bot }) {
             setSaveState('error');
             setTimeout(() => setSaveState('idle'), 4000);
         }
+    };
+
+    const applyColor = useCallback((color) => {
+        setChatbotForm(prev => ({ ...prev, primary_color: color }));
+        setHexInputVal(color);
+        clearTimeout(colorDebounceRef.current);
+        colorDebounceRef.current = setTimeout(async () => {
+            try {
+                await axios.put(`${config.API_BASE_URL}/chatbot`, { primary_color: color }, { withCredentials: true });
+                setColorToast(true);
+                setTimeout(() => setColorToast(false), 2500);
+            } catch (e) { console.error(e); }
+        }, 500);
+    }, []);
+
+    const handleHexInput = (val) => {
+        const upper = val.toUpperCase().replace(/[^0-9A-F#]/g, '');
+        const withHash = upper.startsWith('#') ? upper : '#' + upper;
+        setHexInputVal(withHash);
+        if (/^#[0-9A-Fa-f]{6}$/.test(withHash)) {
+            applyColor(withHash);
+        }
+    };
+
+    const copyHex = () => {
+        navigator.clipboard.writeText(chatbotForm.primary_color || '#FDD017').catch(() => {});
     };
 
     const addStarter = () => {
@@ -105,56 +149,82 @@ export default function BotSettingsTab({ bot }) {
                 </div>
 
                 {/* Brand Color */}
-                <div className="card p-6">
+                <div className="card p-6" style={{ position: 'relative' }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '4px' }}>
                         <Palette size={18} color="var(--color-text-muted)" />
                         <h3 className="section-title">Widget Color</h3>
+                        {colorToast && (
+                            <span style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: '5px', fontSize: '0.8rem', color: 'var(--color-success)', fontWeight: 600, animation: 'fadeIn 0.2s ease' }}>
+                                <CheckCircle size={14} /> Saved
+                            </span>
+                        )}
                     </div>
                     <p className="text-muted mb-5" style={{ fontSize: '0.88rem' }}>Set the primary color of your chat widget (bubble, header, user messages).</p>
 
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '12px', flexWrap: 'wrap' }}>
+                        {/* Color swatch preview */}
+                        <div style={{
+                            width: '40px', height: '40px', borderRadius: '8px',
+                            background: chatbotForm.primary_color || '#FDD017',
+                            border: '2px solid var(--color-border)', flexShrink: 0,
+                            boxShadow: 'var(--shadow-xs)'
+                        }} />
+
+                        {/* Native color picker (hidden behind swatch) */}
                         <div style={{ position: 'relative' }}>
                             <input
                                 type="color"
-                                value={chatbotForm.primary_color || '#000000'}
-                                onChange={e => setChatbotForm({ ...chatbotForm, primary_color: e.target.value })}
+                                value={chatbotForm.primary_color || '#FDD017'}
+                                onChange={e => applyColor(e.target.value)}
                                 style={{
-                                    width: '52px', height: '52px', border: '2px solid var(--color-border)',
+                                    width: '44px', height: '44px', border: '2px solid var(--color-border)',
                                     borderRadius: '10px', cursor: 'pointer', padding: '2px', background: 'none'
                                 }}
-                                title="Pick widget color"
+                                title="Open color picker"
                             />
                         </div>
-                        <div>
+
+                        {/* Hex input with # prefix */}
+                        <div style={{ display: 'flex', alignItems: 'center', border: '1.5px solid var(--color-border)', borderRadius: 'var(--radius-md)', overflow: 'hidden', background: 'var(--color-white)' }}>
+                            <span style={{ padding: '0 8px', color: 'var(--color-text-muted)', fontFamily: 'var(--font-mono)', fontSize: '0.9rem', borderRight: '1px solid var(--color-border)', lineHeight: '38px' }}>#</span>
                             <input
                                 type="text"
-                                className="input-field"
-                                value={chatbotForm.primary_color || '#000000'}
-                                onChange={e => {
-                                    const val = e.target.value;
-                                    if (/^#[0-9A-Fa-f]{0,6}$/.test(val)) {
-                                        setChatbotForm({ ...chatbotForm, primary_color: val });
-                                    }
-                                }}
-                                style={{ width: '120px', fontFamily: 'var(--font-mono)', fontSize: '0.9rem' }}
-                                maxLength={7}
-                                placeholder="#000000"
+                                value={hexInputVal.replace('#', '')}
+                                onChange={e => handleHexInput(e.target.value)}
+                                style={{ width: '90px', padding: '9px 10px', border: 'none', outline: 'none', fontFamily: 'var(--font-mono)', fontSize: '0.9rem', textTransform: 'uppercase' }}
+                                maxLength={6}
+                                placeholder="FDD017"
                             />
                         </div>
-                        <div style={{ width: '40px', height: '40px', borderRadius: '8px', background: chatbotForm.primary_color || '#000000', border: '2px solid var(--color-border)' }} />
+
+                        {/* Copy Hex button */}
+                        <button
+                            onClick={copyHex}
+                            className="btn-ghost"
+                            style={{ padding: '8px 12px', fontSize: '0.8rem', gap: '5px' }}
+                            title="Copy hex value"
+                        >
+                            <Copy size={13} /> Copy Hex
+                        </button>
                     </div>
 
-                    {/* Quick presets */}
-                    <div style={{ display: 'flex', gap: '8px', marginTop: '12px', flexWrap: 'wrap' }}>
-                        {['#000000', '#1d4ed8', '#7c3aed', '#be185d', '#047857', '#b45309', '#0891b2', '#dc2626'].map(c => (
+                    {/* 12 preset swatches */}
+                    <div style={{ display: 'flex', gap: '8px', marginTop: '14px', flexWrap: 'wrap' }}>
+                        {COLOR_PRESETS.map(({ hex, label }) => (
                             <button
-                                key={c}
-                                onClick={() => setChatbotForm({ ...chatbotForm, primary_color: c })}
+                                key={hex}
+                                onClick={() => applyColor(hex)}
                                 style={{
-                                    width: '28px', height: '28px', borderRadius: '50%', background: c, border: `3px solid ${chatbotForm.primary_color === c ? 'var(--color-accent)' : 'transparent'}`,
-                                    cursor: 'pointer', outline: chatbotForm.primary_color === c ? '2px solid var(--color-accent)' : 'none', outlineOffset: '2px'
+                                    width: '28px', height: '28px', borderRadius: '50%',
+                                    background: hex,
+                                    border: `2px solid ${chatbotForm.primary_color?.toUpperCase() === hex.toUpperCase() ? 'var(--color-text)' : hex === '#FFFFFF' ? 'var(--color-border)' : 'transparent'}`,
+                                    cursor: 'pointer',
+                                    outline: chatbotForm.primary_color?.toUpperCase() === hex.toUpperCase() ? '2px solid var(--color-accent)' : 'none',
+                                    outlineOffset: '2px',
+                                    transition: 'transform 0.15s',
+                                    boxShadow: '0 1px 3px rgba(0,0,0,0.15)'
                                 }}
-                                title={c}
+                                title={label}
                             />
                         ))}
                     </div>

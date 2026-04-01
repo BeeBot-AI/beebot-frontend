@@ -1,22 +1,20 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { Send, Bot, User, AlertCircle } from 'lucide-react';
+import { Send, Bot, User, Trash2, ExternalLink, Settings, ArrowRight } from 'lucide-react';
 import config from '../../config';
 
-export default function PlaygroundTab({ businessId, bot }) {
+export default function PlaygroundTab({ businessId, bot, onNavigate }) {
     const [messages, setMessages] = useState([
         { role: 'assistant', content: bot?.welcome_message || 'Hi! I am your BeeBot. Test me by asking a question about your uploaded knowledge!' }
     ]);
-    const [input, setInput] = useState('');
+    const [input, setInput]       = useState('');
     const [isLoading, setIsLoading] = useState(false);
-    const messagesEndRef = useRef(null);
+    const messagesEndRef          = useRef(null);
 
     const scrollToBottom = () => {
         messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
     };
 
-    useEffect(() => {
-        scrollToBottom();
-    }, [messages]);
+    useEffect(() => { scrollToBottom(); }, [messages]);
 
     const handleSend = async (e) => {
         e.preventDefault();
@@ -32,86 +30,146 @@ export default function PlaygroundTab({ businessId, bot }) {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 credentials: 'include',
-                body: JSON.stringify({
-                    query: userMsg,
-                    business_id: businessId,
-                    visitor_id: 'dashboard-playground-user'
-                })
+                body: JSON.stringify({ query: userMsg, business_id: businessId, visitor_id: 'dashboard-playground-user' })
             });
-
             const data = await res.json();
-
-            if (res.ok) {
-                setMessages(prev => [...prev, { role: 'assistant', content: data.response }]);
-            } else {
-                setMessages(prev => [...prev, { role: 'assistant', content: `Error: ${data.error || data.message || 'Failed to get response'}` }]);
-            }
-        } catch (error) {
+            setMessages(prev => [...prev, {
+                role: 'assistant',
+                content: res.ok ? data.response : `Error: ${data.error || data.message || 'Failed to get response'}`
+            }]);
+        } catch {
             setMessages(prev => [...prev, { role: 'assistant', content: 'Connection error while reaching the server.' }]);
         } finally {
             setIsLoading(false);
         }
     };
 
-    return (
-        <div style={{ height: 'calc(100vh - 200px)', display: 'flex', flexDirection: 'column', gap: '1rem' }} className="animate-fade-in">
+    const resetConversation = () => {
+        setMessages([{ role: 'assistant', content: bot?.welcome_message || 'Hi! How can I help you today?' }]);
+    };
 
-            {/* Warning Banner */}
-            <div className="alert alert-warning">
-                <AlertCircle size={20} style={{ flexShrink: 0 }} />
-                <span>
-                    <strong>Playground Sandbox:</strong> Test your chatbot configuration and knowledge base here.
-                    Messages sent in this playground do not count towards your monthly billing limits.
-                </span>
+    const primaryColor = bot?.primary_color || '#000000';
+
+    return (
+        <div className="animate-fade-in" style={{ display: 'grid', gridTemplateColumns: '280px 1fr', gap: '1.5rem', height: 'calc(100vh - 120px)', alignItems: 'start' }}>
+
+            {/* ── Left Panel: Settings Sidebar ─────────────────────────────── */}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem', position: 'sticky', top: '1rem' }}>
+
+                {/* Testing Mode badge */}
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '10px 14px', background: '#FFFBDC', border: '1.5px solid #FDD017', borderRadius: '10px' }}>
+                    <div style={{ width: '8px', height: '8px', borderRadius: '50%', background: '#C8A000', flexShrink: 0, animation: 'pulse 2s ease infinite' }} />
+                    <span style={{ fontSize: '0.82rem', fontWeight: 600, color: '#7a5c00' }}>Testing Mode — Sandbox</span>
+                </div>
+
+                {/* Bot Config Summary */}
+                <div className="card p-5">
+                    <h4 style={{ fontSize: '0.85rem', fontWeight: 600, color: 'var(--color-text)', marginBottom: '14px', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Bot Configuration</h4>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+
+                        {/* Color swatch */}
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                            <div style={{ width: '28px', height: '28px', borderRadius: '6px', background: primaryColor, border: '2px solid var(--color-border)', flexShrink: 0 }} />
+                            <div>
+                                <div style={{ fontSize: '0.72rem', color: 'var(--color-text-faint)', textTransform: 'uppercase', letterSpacing: '0.04em' }}>Widget Color</div>
+                                <div style={{ fontSize: '0.82rem', fontFamily: 'var(--font-mono)', color: 'var(--color-text)', fontWeight: 500 }}>{primaryColor}</div>
+                            </div>
+                        </div>
+
+                        <div style={{ borderTop: '1px solid var(--color-border)', paddingTop: '10px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                            <div>
+                                <div style={{ fontSize: '0.72rem', color: 'var(--color-text-faint)', textTransform: 'uppercase', letterSpacing: '0.04em', marginBottom: '2px' }}>Bot Name</div>
+                                <div style={{ fontSize: '0.88rem', fontWeight: 500, color: 'var(--color-text)' }}>{bot?.bot_name || 'BeeBot'}</div>
+                            </div>
+                            <div>
+                                <div style={{ fontSize: '0.72rem', color: 'var(--color-text-faint)', textTransform: 'uppercase', letterSpacing: '0.04em', marginBottom: '2px' }}>Tone</div>
+                                <div style={{ fontSize: '0.88rem', color: 'var(--color-text)', textTransform: 'capitalize' }}>{bot?.bot_tone || 'Professional'}</div>
+                            </div>
+                            <div>
+                                <div style={{ fontSize: '0.72rem', color: 'var(--color-text-faint)', textTransform: 'uppercase', letterSpacing: '0.04em', marginBottom: '2px' }}>Welcome Message</div>
+                                <div style={{ fontSize: '0.82rem', color: 'var(--color-text-muted)', lineHeight: 1.4 }}>{bot?.welcome_message?.slice(0, 60) || 'Hi! How can I help you today?'}{bot?.welcome_message?.length > 60 ? '…' : ''}</div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <button
+                        onClick={() => onNavigate?.('settings')}
+                        style={{ marginTop: '14px', width: '100%', padding: '9px', background: 'var(--color-surface)', border: '1.5px solid var(--color-border)', borderRadius: '8px', fontFamily: 'inherit', fontSize: '0.82rem', fontWeight: 500, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px', color: 'var(--color-text-muted)', transition: 'all 0.15s' }}
+                    >
+                        <Settings size={13} /> Edit Bot Settings <ArrowRight size={12} />
+                    </button>
+                </div>
+
+                {/* Guide */}
+                <div style={{ padding: '14px', background: 'var(--color-surface)', border: '1px solid var(--color-border)', borderRadius: '10px' }}>
+                    <p style={{ fontSize: '0.8rem', color: 'var(--color-text-muted)', lineHeight: 1.6, margin: 0 }}>
+                        What you see here is exactly what your visitors see. Try asking a question from your knowledge base.
+                    </p>
+                </div>
             </div>
 
-            {/* Chat Interface */}
-            <div className="card" style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden', background: 'var(--color-surface)' }}>
+            {/* ── Right Panel: Chat Window ──────────────────────────────────── */}
+            <div style={{ border: '1px solid var(--color-border)', borderRadius: '16px', overflow: 'hidden', display: 'flex', flexDirection: 'column', height: 'calc(100vh - 120px)', background: 'var(--color-white)', boxShadow: 'var(--shadow-md)' }}>
 
-                {/* Header */}
-                <div style={{ padding: '16px 20px', borderBottom: '1px solid var(--color-border)', background: 'var(--color-white)', display: 'flex', alignItems: 'center', gap: '12px' }}>
-                    <div style={{ width: '36px', height: '36px', borderRadius: '50%', background: 'var(--color-primary)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'white' }}>
-                        <Bot size={18} />
+                {/* Mac-style browser chrome */}
+                <div style={{ background: '#f0f0f0', padding: '10px 14px', borderBottom: '1px solid #ddd', display: 'flex', alignItems: 'center', gap: '10px', flexShrink: 0 }}>
+                    <div style={{ display: 'flex', gap: '6px' }}>
+                        <span style={{ width: '12px', height: '12px', borderRadius: '50%', background: '#ff5f57', display: 'inline-block' }} />
+                        <span style={{ width: '12px', height: '12px', borderRadius: '50%', background: '#ffbd2e', display: 'inline-block' }} />
+                        <span style={{ width: '12px', height: '12px', borderRadius: '50%', background: '#28c840', display: 'inline-block' }} />
                     </div>
-                    <div>
-                        <div style={{ fontWeight: 600, color: 'var(--color-text)', lineHeight: 1.2 }}>{bot?.bot_name || 'BeeBot'}</div>
-                        <div style={{ fontSize: '0.8rem', color: 'var(--color-success)', display: 'flex', alignItems: 'center', gap: '4px' }}>
-                            <div style={{ width: '6px', height: '6px', borderRadius: '50%', background: 'var(--color-success)' }}></div> Online
-                        </div>
+                    <div style={{ flex: 1, background: '#e0e0e0', borderRadius: '6px', padding: '4px 12px', fontSize: '0.75rem', color: '#888', fontFamily: 'var(--font-mono)', textAlign: 'center' }}>
+                        yourwebsite.com
+                    </div>
+                    <div style={{ display: 'flex', gap: '8px' }}>
+                        <button
+                            onClick={resetConversation}
+                            style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#888', display: 'flex', alignItems: 'center', gap: '4px', fontSize: '0.75rem', padding: '3px 7px', borderRadius: '5px', fontFamily: 'inherit', transition: 'background 0.15s' }}
+                            title="Reset conversation"
+                        >
+                            <Trash2 size={13} /> Reset
+                        </button>
+                        <a
+                            href="/playground-preview"
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#888', display: 'flex', alignItems: 'center', gap: '4px', fontSize: '0.75rem', padding: '3px 7px', borderRadius: '5px', textDecoration: 'none', transition: 'background 0.15s' }}
+                            title="Open in new tab"
+                        >
+                            <ExternalLink size={13} /> New Tab
+                        </a>
                     </div>
                 </div>
 
-                {/* Chat History */}
-                <div style={{ flex: 1, overflowY: 'auto', padding: '2rem', display: 'flex', flexDirection: 'column', gap: '1.5rem', background: 'var(--color-surface-2)' }}>
-                    {messages.map((msg, idx) => (
-                        <div key={idx} style={{
-                            display: 'flex', gap: '12px',
-                            flexDirection: msg.role === 'user' ? 'row-reverse' : 'row',
-                            alignSelf: msg.role === 'user' ? 'flex-end' : 'flex-start',
-                            maxWidth: '85%'
-                        }}>
-                            {/* Avatar */}
-                            <div style={{
-                                width: '32px', height: '32px', borderRadius: '50%', flexShrink: 0,
-                                background: msg.role === 'assistant' ? 'var(--color-primary)' : 'var(--color-white)',
-                                border: msg.role === 'user' ? '1px solid var(--color-border)' : 'none',
-                                display: 'flex', alignItems: 'center', justifyContent: 'center',
-                                color: msg.role === 'assistant' ? 'white' : 'var(--color-text-muted)',
-                                boxShadow: msg.role === 'assistant' ? '0 2px 8px rgba(201,139,10,0.3)' : 'var(--shadow-xs)'
-                            }}>
-                                {msg.role === 'assistant' ? <Bot size={16} /> : <User size={16} />}
+                {/* Chat header */}
+                <div style={{ padding: '13px 16px', background: primaryColor, display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexShrink: 0 }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                        <div style={{ width: '34px', height: '34px', borderRadius: '50%', background: 'rgba(255,255,255,0.15)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                            <img src="/bee-chat.png" alt="" style={{ width: '34px', height: '34px', borderRadius: '50%', objectFit: 'cover' }} onError={e => e.target.style.display = 'none'} />
+                        </div>
+                        <div>
+                            <div style={{ fontWeight: 600, fontSize: '0.9rem', color: '#fff', lineHeight: 1.2 }}>{bot?.bot_name || 'BeeBot'}</div>
+                            <div style={{ fontSize: '0.7rem', color: 'rgba(255,255,255,0.75)', display: 'flex', alignItems: 'center', gap: '4px', marginTop: '1px' }}>
+                                <span style={{ width: '6px', height: '6px', borderRadius: '50%', background: '#4ade80', display: 'inline-block' }} /> Online
                             </div>
+                        </div>
+                    </div>
+                    <span style={{ fontSize: '0.7rem', background: 'rgba(0,0,0,0.2)', color: 'rgba(255,255,255,0.85)', padding: '3px 10px', borderRadius: '20px', fontWeight: 600 }}>
+                        Testing Mode
+                    </span>
+                </div>
 
-                            {/* Bubble */}
+                {/* Messages */}
+                <div style={{ flex: 1, overflowY: 'auto', padding: '16px 14px', background: '#f7f8fa', display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                    {messages.map((msg, idx) => (
+                        <div key={idx} style={{ display: 'flex', flexDirection: 'column', alignItems: msg.role === 'user' ? 'flex-end' : 'flex-start' }}>
                             <div style={{
-                                background: msg.role === 'assistant' ? 'var(--color-white)' : 'var(--color-text)',
-                                color: msg.role === 'assistant' ? 'var(--color-text)' : 'var(--color-white)',
-                                border: msg.role === 'assistant' ? '1px solid var(--color-border)' : 'none',
-                                padding: '14px 18px',
-                                borderRadius: msg.role === 'assistant' ? '4px 16px 16px 16px' : '16px 4px 16px 16px',
-                                fontSize: '0.95rem',
-                                lineHeight: '1.6',
-                                boxShadow: 'var(--shadow-sm)'
+                                maxWidth: '80%', padding: '9px 13px', fontSize: '0.88rem', lineHeight: 1.55, wordBreak: 'break-word',
+                                background: msg.role === 'user' ? primaryColor : '#fff',
+                                color: msg.role === 'user' ? '#fff' : '#1a1a1a',
+                                borderRadius: msg.role === 'user' ? '14px 14px 4px 14px' : '4px 14px 14px 14px',
+                                border: msg.role === 'assistant' ? '1px solid #e8e8e8' : 'none',
+                                boxShadow: '0 1px 4px rgba(0,0,0,0.06)'
                             }}>
                                 {msg.content}
                             </div>
@@ -119,54 +177,39 @@ export default function PlaygroundTab({ businessId, bot }) {
                     ))}
 
                     {isLoading && (
-                        <div style={{ display: 'flex', gap: '12px', alignSelf: 'flex-start' }}>
-                            <div style={{ width: '32px', height: '32px', borderRadius: '50%', background: 'var(--color-primary)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'white', flexShrink: 0 }}>
-                                <Bot size={16} />
-                            </div>
-                            <div style={{ background: 'var(--color-white)', border: '1px solid var(--color-border)', padding: '14px 18px', borderRadius: '4px 16px 16px 16px', display: 'flex', alignItems: 'center', gap: '6px', boxShadow: 'var(--shadow-sm)' }}>
-                                <span className="animate-pulse" style={{ display: 'flex', gap: '4px' }}>
-                                    <div style={{ width: '6px', height: '6px', background: 'var(--color-border-strong)', borderRadius: '50%' }}></div>
-                                    <div style={{ width: '6px', height: '6px', background: 'var(--color-border-strong)', borderRadius: '50%' }}></div>
-                                    <div style={{ width: '6px', height: '6px', background: 'var(--color-border-strong)', borderRadius: '50%' }}></div>
-                                </span>
+                        <div style={{ display: 'flex', alignItems: 'flex-start' }}>
+                            <div style={{ background: '#fff', border: '1px solid #e8e8e8', padding: '11px 15px', borderRadius: '4px 14px 14px 14px', display: 'flex', gap: '5px', alignItems: 'center' }}>
+                                {[0, 0.15, 0.3].map((delay, i) => (
+                                    <div key={i} style={{ width: '7px', height: '7px', borderRadius: '50%', background: '#ccc', animation: `bounce3dot 1.2s ease infinite`, animationDelay: `${delay}s` }} />
+                                ))}
                             </div>
                         </div>
                     )}
                     <div ref={messagesEndRef} />
                 </div>
 
-                {/* Input Area */}
-                <div style={{ padding: '1.25rem', borderTop: '1px solid var(--color-border)', background: 'var(--color-white)' }}>
-                    <form onSubmit={handleSend} className="playground-form">
+                {/* Input */}
+                <div style={{ padding: '10px 12px', borderTop: '1px solid #efefef', background: '#fff', flexShrink: 0 }}>
+                    <form onSubmit={handleSend} style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
                         <input
                             type="text"
                             value={input}
-                            onChange={(e) => setInput(e.target.value)}
-                            placeholder="Ask BeeBot a question..."
+                            onChange={e => setInput(e.target.value)}
+                            placeholder="Ask a question from your knowledge base…"
                             disabled={isLoading}
-                            style={{
-                                flexGrow: 1, background: 'transparent', border: 'none', color: 'var(--color-text)',
-                                fontSize: '0.95rem', outline: 'none', fontFamily: 'var(--font-body)'
-                            }}
+                            style={{ flex: 1, padding: '9px 14px', background: '#f9fafb', border: '1.5px solid #e2e8f0', borderRadius: '20px', fontSize: '0.85rem', outline: 'none', fontFamily: 'inherit', color: '#1a1a1a', transition: 'border-color 0.15s' }}
+                            onFocus={e => e.target.style.borderColor = primaryColor}
+                            onBlur={e => e.target.style.borderColor = '#e2e8f0'}
                         />
                         <button
                             type="submit"
                             disabled={isLoading || !input.trim()}
-                            style={{
-                                width: '40px', height: '40px', borderRadius: '50%',
-                                background: input.trim() ? 'var(--color-primary)' : 'var(--color-border)',
-                                color: input.trim() ? 'white' : 'var(--color-text-faint)',
-                                border: 'none', display: 'flex', alignItems: 'center', justifyContent: 'center',
-                                cursor: (isLoading || !input.trim()) ? 'not-allowed' : 'pointer',
-                                transition: 'all 0.2s'
-                            }}
+                            style={{ width: '36px', height: '36px', borderRadius: '50%', background: input.trim() ? primaryColor : '#e2e8f0', color: input.trim() ? '#fff' : '#aaa', border: 'none', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: (isLoading || !input.trim()) ? 'not-allowed' : 'pointer', transition: 'all 0.15s', flexShrink: 0 }}
                         >
-                            <Send size={18} style={{ marginLeft: '-2px' }} />
+                            <Send size={15} style={{ marginLeft: '-1px' }} />
                         </button>
                     </form>
-                    <div className="text-center mt-3">
-                        <span style={{ fontSize: '0.75rem', color: 'var(--color-text-faint)' }}>BeeBot can make mistakes. Consider verifying important information.</span>
-                    </div>
+                    <div style={{ textAlign: 'center', marginTop: '6px', fontSize: '0.65rem', color: '#bbb' }}>Powered by BeeBot</div>
                 </div>
             </div>
         </div>

@@ -7,14 +7,14 @@
   --color-primary-deep: #1a1a1a;     /* Slightly lighter black for hover */
   --color-primary-light: #f5f5f5;    /* Light gray surface */
   --color-primary-mid: #e8e8e8;      /* Mid gray */
-  --color-accent: #FFDE21;           /* Yellow — highlights, badges, active states */
-  --color-accent-deep: #c8a800;      /* Darker yellow (text on light bg only) */
-  --color-accent-light: #fffde7;     /* Very light yellow for badge backgrounds */
+  --color-accent: #FDD017;           /* Gold — highlights, badges, active states */
+  --color-accent-deep: #C8A000;      /* Gold Dark (text on light bg only) */
+  --color-accent-light: #FFF8DC;     /* Gold Light (backgrounds/tints) */
   --color-surface: #FAFAFA;
   --color-surface-2: #F5F5F5;
   --color-surface-3: #EBEBEB;
   --color-white: #FFFFFF;
-  --color-border: #E5E5E5;
+  --color-border: #E5E7EB;
   --color-border-strong: #D4D4D4;
   --color-text: #000000;             /* Pure black text */
   --color-text-muted: #6b7280;
@@ -30,8 +30,8 @@
   --sidebar-bg: #000000;
   --sidebar-border: #1a1a1a;
   --sidebar-text: #9ca3af;
-  --sidebar-text-active: #FFDE21;
-  --sidebar-active-bg: rgba(255, 222, 33, 0.12);
+  --sidebar-text-active: #FDD017;
+  --sidebar-active-bg: rgba(253, 208, 23, 0.12);
   --sidebar-hover-bg: rgba(255, 255, 255, 0.05);
   --sidebar-width: 256px;
 
@@ -415,7 +415,7 @@ textarea {
 
 .input-field:focus {
   border-color: var(--color-primary);
-  box-shadow: 0 0 0 3px rgba(255, 222, 33, 0.25);
+  box-shadow: 0 0 0 3px rgba(253, 208, 23, 0.25);
 }
 
 .input-field.error {
@@ -578,7 +578,7 @@ textarea {
 }
 
 .code-block code {
-  color: #FFDE21;
+  color: #FDD017;
   font-family: var(--font-mono);
   font-size: var(--text-sm);
   white-space: pre;
@@ -1011,15 +1011,15 @@ textarea {
 
 @keyframes pulseRipple {
   0% {
-    box-shadow: 0 0 0 0 rgba(255, 222, 33, 0.4);
+    box-shadow: 0 0 0 0 rgba(253, 208, 23, 0.4);
   }
 
   70% {
-    box-shadow: 0 0 0 15px rgba(255, 222, 33, 0);
+    box-shadow: 0 0 0 15px rgba(253, 208, 23, 0);
   }
 
   100% {
-    box-shadow: 0 0 0 0 rgba(255, 222, 33, 0);
+    box-shadow: 0 0 0 0 rgba(253, 208, 23, 0);
   }
 }
 
