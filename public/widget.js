@@ -61,22 +61,7 @@
         } catch (e) {}
     };
 
-    // ─── 4. Color persistence ─────────────────────────────────────────────────
-    const COLOR_KEY = `beebot_color_${VISITOR_ID}`;
-    const getStoredColor = () => localStorage.getItem(COLOR_KEY) || null;
-    const storeColor = (c) => localStorage.setItem(COLOR_KEY, c);
-
-    let colorSaveTimer = null;
-    const saveColorToServer = (color) => {
-        clearTimeout(colorSaveTimer);
-        colorSaveTimer = setTimeout(() => {
-            fetch(`${API_URL}/chat/color`, {
-                method: 'PUT',
-                headers: { 'Content-Type': 'application/json', 'x-api-key': API_KEY },
-                body: JSON.stringify({ primary_color: color })
-            }).catch(() => {});
-        }, 800);
-    };
+    // ─── 4. (Color is always fetched fresh from backend config — no localStorage cache) ──
 
     // ─── 5. Rich text renderer ────────────────────────────────────────────────
     const renderMarkdown = (text) => {
@@ -134,8 +119,7 @@
 
     // ─── 9. Build Widget ──────────────────────────────────────────────────────
     const buildWidget = (botConfig) => {
-        const storedColor = getStoredColor();
-        let PRIMARY_COLOR = storedColor || botConfig.primary_color || '#000000';
+        let PRIMARY_COLOR = botConfig.primary_color || '#FDD017';
         const BOT_NAME    = botConfig.bot_name || 'BeeBot Support';
         const WELCOME_MSG = botConfig.welcome_message || 'Hi! How can I help you today?';
         const STARTERS    = Array.isArray(botConfig.conversation_starters) ? botConfig.conversation_starters : [];
@@ -593,9 +577,7 @@
 
         const applyColor = (color) => {
             PRIMARY_COLOR = color;
-            storeColor(color);
             styleEl.textContent = getStyles(color);
-            saveColorToServer(color);
         };
 
         const updatePickerUI = () => {

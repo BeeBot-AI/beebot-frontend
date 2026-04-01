@@ -1,35 +1,47 @@
-import React, { useState } from 'react';
-import { Bot, ArrowRight, CheckCircle, Store, MessageSquare, Hexagon, Settings, Link } from 'lucide-react';
+import React, { useState, useRef } from 'react';
+import { ArrowRight, CheckCircle, Store, Bot, Upload, Code, Link2, FileText, X } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { useTour } from '../context/TourContext';
 import axios from 'axios';
 import config from '../config';
 
+const TONES = [
+    { value: 'friendly',     label: 'Friendly',      emoji: '😊', desc: 'Casual & warm' },
+    { value: 'professional', label: 'Professional',  emoji: '💼', desc: 'Direct & formal' },
+    { value: 'concise',      label: 'Concise',       emoji: '⚡', desc: 'Short answers' },
+    { value: 'persuasive',   label: 'Persuasive',    emoji: '🎯', desc: 'Sales-focused' },
+    { value: 'empathetic',   label: 'Empathetic',    emoji: '🤝', desc: 'Caring & supportive' },
+];
+
+const STEPS = [
+    { label: 'Welcome',       icon: <Store size={16} /> },
+    { label: 'Bot Setup',     icon: <Bot size={16} /> },
+    { label: 'Knowledge',     icon: <Upload size={16} /> },
+    { label: 'Embed',         icon: <Code size={16} /> },
+];
+
 export default function Onboarding() {
-    const [step, setStep] = useState(0);
+    const [step, setStep]       = useState(0);
     const [loading, setLoading] = useState(false);
-    const [error, setError] = useState('');
-    const { refetchUser } = useAuth();
-    const { startTour } = useTour();
-    const navigate = useNavigate();
+    const [error, setError]     = useState('');
+    const { refetchUser }       = useAuth();
+    const { startTour }         = useTour();
+    const navigate              = useNavigate();
+    const fileInputRef          = useRef(null);
 
-    // Step 0: Business Info
-    const [businessForm, setBusinessForm] = useState({ name: '', website: '' });
-
-    // Step 1: Chatbot Form (live preview)
-    const [chatbotForm, setChatbotForm] = useState({
+    const [businessForm, setBusinessForm] = useState({ name: '', industry: '' });
+    const [chatbotForm, setChatbotForm]   = useState({
         bot_name: 'Support Bee',
         tone: 'professional',
         welcome_message: 'Hi there! How can I help you today?',
-        fallback_message: "I couldn't find an answer to that. Please contact our human support."
     });
-
-    const STEPS = [
-        { title: 'Business Profile', icon: <Store size={18} /> },
-        { title: 'AI Configuration', icon: <Bot size={18} /> },
-        { title: 'Launch Sequence', icon: <CheckCircle size={18} /> }
-    ];
+    const [kbMode, setKbMode]             = useState('url'); // 'url' | 'file'
+    const [kbUrl, setKbUrl]               = useState('');
+    const [kbFile, setKbFile]             = useState(null);
+    const [kbUploading, setKbUploading]   = useState(false);
+    const [kbDone, setKbDone]             = useState(false);
+    const [dragOver, setDragOver]         = useState(false);
 
     const handleBusinessSubmit = async (e) => {
         e.preventDefault();
@@ -37,11 +49,11 @@ export default function Onboarding() {
         try {
             await axios.post(`${config.API_BASE_URL}/business`, {
                 business_name: businessForm.name,
-                website_url: businessForm.website
+                website_url: businessForm.industry,
             }, { withCredentials: true });
             setStep(1);
         } catch (err) {
-            setError(err.response?.data?.message || 'Failed to save business info');
+            setError(err.response?.data?.message || 'Failed to save business info.');
         } finally {
             setLoading(false);
         }
@@ -53,251 +65,364 @@ export default function Onboarding() {
         try {
             await axios.post(`${config.API_BASE_URL}/chatbot`, {
                 bot_name: chatbotForm.bot_name,
-                bot_tone: chatbotForm.tone, // Maps state to backend schema
+                bot_tone: chatbotForm.tone,
                 welcome_message: chatbotForm.welcome_message,
-                fallback_message: chatbotForm.fallback_message
             }, { withCredentials: true });
             await refetchUser();
             setStep(2);
         } catch (err) {
-            setError(err.response?.data?.message || 'Failed to save chatbot settings');
+            setError(err.response?.data?.message || 'Failed to save chatbot settings.');
         } finally {
             setLoading(false);
         }
     };
 
+    const handleKbSubmit = async (e) => {
+        e.preventDefault();
+        setKbUploading(true); setError('');
+        try {
+            if (kbMode === 'url' && kbUrl) {
+                await axios.post(`${config.API_BASE_URL}/knowledge/url`, { url: kbUrl }, { withCredentials: true });
+            } else if (kbMode === 'file' && kbFile) {
+                const fd = new FormData();
+                fd.append('file', kbFile);
+                await axios.post(`${config.API_BASE_URL}/knowledge/upload`, fd, { withCredentials: true });
+            }
+            setKbDone(true);
+            setTimeout(() => setStep(3), 800);
+        } catch (err) {
+            setError(err.response?.data?.message || 'Upload failed. You can add knowledge later from the dashboard.');
+        } finally {
+            setKbUploading(false);
+        }
+    };
+
+    const handleFileDrop = (e) => {
+        e.preventDefault(); setDragOver(false);
+        const file = e.dataTransfer.files?.[0];
+        if (file) { setKbFile(file); setKbMode('file'); }
+    };
+
+    const scriptTag = `<script\n  src="https://beebot-ai.vercel.app/widget.js"\n  data-api-key="YOUR_API_KEY"\n  data-api-url="https://beebot-backend.onrender.com"\n  defer>\n</script>`;
+
     return (
-        <div style={{ minHeight: '100vh', background: 'var(--color-surface)', display: 'flex', position: 'relative', overflow: 'hidden' }}>
+        <div style={{ minHeight: '100vh', display: 'flex', fontFamily: 'var(--font-body)' }}>
 
-            {/* ─── LEFT SIDEBAR (Progress & Context) 30% ─── */}
-            <div className="hidden-mobile" style={{ width: '30%', minWidth: '320px', maxWidth: '400px', background: 'var(--color-surface-2)', borderRight: '1px solid var(--color-border)', padding: '3rem 2.5rem', display: 'flex', flexDirection: 'column', position: 'relative' }}>
-
-                {/* Abstract corner SVG texture */}
-                <div style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', opacity: 0.1, pointerEvents: 'none', zIndex: 0 }}>
-                    <svg width="100%" height="100%" xmlns="http://www.w3.org/2000/svg">
-                        <defs><pattern id="dots" x="0" y="0" width="20" height="20" patternUnits="userSpaceOnUse"><circle fill="var(--color-text)" cx="2" cy="2" r="1.5"></circle></pattern></defs>
-                        <rect x="0" y="0" width="100%" height="100%" fill="url(#dots)"></rect>
-                    </svg>
+            {/* ── Left Panel (dark, branding + stepper) ──────────────────────── */}
+            <div style={{
+                width: '320px', minWidth: '320px', background: '#000', color: '#fff',
+                display: 'flex', flexDirection: 'column', padding: '2.5rem 2rem',
+                position: 'sticky', top: 0, height: '100vh', overflowY: 'auto',
+            }} className="hidden-mobile">
+                {/* Logo */}
+                <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '3rem' }}>
+                    <img src="/bee-yellow.jpg" alt="BeeBot" style={{ width: '36px', height: '36px', borderRadius: '8px' }} />
+                    <span style={{ fontWeight: 800, fontSize: '1.2rem', color: '#FDD017', letterSpacing: '-0.02em' }}>BeeBot</span>
                 </div>
 
-                <div className="flex items-center gap-3 mb-16 relative z-10">
-                    <img src="/bee-yellow.jpg" alt="BeeBot Logo" style={{ width: '36px', height: '36px', borderRadius: '8px' }} />
-                    <span style={{ fontFamily: 'var(--font-display)', fontWeight: 800, fontSize: '1.4rem', color: 'var(--color-text)' }}>BeeBot Setup.</span>
+                {/* Tagline */}
+                <div style={{ marginBottom: '2.5rem' }}>
+                    <h2 style={{ fontSize: '1.4rem', fontWeight: 700, lineHeight: 1.3, color: '#fff', marginBottom: '8px' }}>
+                        Set up your AI chatbot in minutes.
+                    </h2>
+                    <p style={{ fontSize: '0.85rem', color: 'rgba(255,255,255,0.5)', lineHeight: 1.6 }}>
+                        Follow the steps to launch BeeBot on your website.
+                    </p>
                 </div>
 
-                <div style={{ flex: 1, position: 'relative', zIndex: 10 }}>
-                    <h3 style={{ fontFamily: 'var(--font-display)', fontSize: '1.2rem', fontWeight: 700, marginBottom: '2.5rem', color: 'var(--color-text)' }}>Your Launch Path</h3>
-
-                    <div style={{ position: 'relative' }}>
-                        {/* Hand-drawn vertical track line */}
-                        <svg width="4" height="100%" style={{ position: 'absolute', left: '18px', top: '10px', zIndex: 0, overflow: 'visible' }}>
-                            <path d="M2,0 Q-2,50 3,100 T1,200" fill="none" stroke="var(--color-border-strong)" strokeWidth="2" strokeDasharray="6 4" />
-                            <path d="M2,0 Q-2,50 3,100" fill="none" stroke="var(--color-primary-deep)" strokeWidth="3" strokeDasharray="1000" strokeDashoffset={step === 0 ? 1000 : step === 1 ? 50 : 0} style={{ transition: 'stroke-dashoffset 1s var(--ease-out-expo)' }} />
-                        </svg>
-
-                        <div style={{ display: 'flex', flexDirection: 'column', gap: '3rem', position: 'relative', zIndex: 1 }}>
-                            {STEPS.map((s, i) => {
-                                const isActive = step === i;
-                                const isPast = step > i;
-                                const isFuture = step < i;
-
-                                return (
-                                    <div key={i} style={{ display: 'flex', gap: '16px', opacity: isFuture ? 0.5 : 1, transition: 'all 0.3s' }}>
-                                        {/* Status Node */}
-                                        <div style={{
-                                            width: '40px', height: '40px', borderRadius: '50%', flexShrink: 0,
-                                            background: isPast ? 'var(--color-primary-deep)' : isActive ? 'var(--color-white)' : 'var(--color-surface)',
-                                            color: isPast ? 'var(--color-white)' : isActive ? 'var(--color-primary-deep)' : 'var(--color-text-faint)',
-                                            border: `2px solid ${isPast ? 'var(--color-primary-deep)' : isActive ? 'var(--color-primary)' : 'var(--color-border)'}`,
-                                            display: 'flex', alignItems: 'center', justifyContent: 'center',
-                                            boxShadow: isActive ? '0 0 0 4px rgba(201,139,10,0.1)' : 'none',
-                                            transition: 'all 0.3s var(--ease-out-expo)'
-                                        }}>
-                                            {isPast ? <CheckCircle size={18} /> : s.icon}
-                                        </div>
-                                        {/* Content */}
-                                        <div style={{ paddingTop: '8px' }}>
-                                            <h4 style={{ fontWeight: isActive ? 700 : 500, fontSize: '1.05rem', color: isActive ? 'var(--color-text)' : 'var(--color-text-muted)', marginBottom: '4px' }}>{s.title}</h4>
-                                            {isActive && (
-                                                <p className="animate-fade-in text-muted" style={{ fontSize: '0.85rem', lineHeight: 1.4 }}>
-                                                    {i === 0 && "Let's align the AI to your specific brand and domain."}
-                                                    {i === 1 && "Shape the personality that your customers will interact with."}
-                                                    {i === 2 && "Everything is wired up. Ready for the final launch."}
-                                                </p>
-                                            )}
-                                        </div>
+                {/* Vertical stepper */}
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '0' }}>
+                    {STEPS.map((s, i) => {
+                        const isPast    = step > i;
+                        const isActive  = step === i;
+                        const isFuture  = step < i;
+                        return (
+                            <div key={i} style={{ display: 'flex', gap: '14px', position: 'relative', paddingBottom: i < STEPS.length - 1 ? '2rem' : 0 }}>
+                                {/* Connector line */}
+                                {i < STEPS.length - 1 && (
+                                    <div style={{
+                                        position: 'absolute', left: '17px', top: '34px',
+                                        width: '2px', height: 'calc(100% - 18px)',
+                                        background: isPast ? '#FDD017' : 'rgba(255,255,255,0.1)',
+                                        transition: 'background 0.4s'
+                                    }} />
+                                )}
+                                {/* Circle */}
+                                <div style={{
+                                    width: '36px', height: '36px', borderRadius: '50%', flexShrink: 0,
+                                    display: 'flex', alignItems: 'center', justifyContent: 'center',
+                                    background: isPast ? '#FDD017' : isActive ? 'transparent' : 'rgba(255,255,255,0.06)',
+                                    border: isActive ? '2px solid #FDD017' : isPast ? '2px solid #FDD017' : '2px solid rgba(255,255,255,0.15)',
+                                    color: isPast ? '#000' : isActive ? '#FDD017' : 'rgba(255,255,255,0.3)',
+                                    transition: 'all 0.3s',
+                                    zIndex: 1,
+                                }}>
+                                    {isPast ? <CheckCircle size={16} /> : s.icon}
+                                </div>
+                                {/* Label */}
+                                <div style={{ paddingTop: '7px' }}>
+                                    <div style={{ fontSize: '0.88rem', fontWeight: isActive ? 600 : 400, color: isActive ? '#fff' : isPast ? 'rgba(255,255,255,0.7)' : 'rgba(255,255,255,0.3)', transition: 'color 0.3s' }}>
+                                        {s.label}
                                     </div>
-                                );
-                            })}
-                        </div>
-                    </div>
+                                </div>
+                            </div>
+                        );
+                    })}
                 </div>
 
-                <div className="text-faint" style={{ fontSize: '0.85rem', marginTop: 'auto', paddingTop: '2rem' }}>
-                    Need help? <a href="#" className="text-primary font-semibold">Chat with support</a>
+                {/* Bottom help */}
+                <div style={{ marginTop: 'auto', paddingTop: '2rem', borderTop: '1px solid rgba(255,255,255,0.08)', fontSize: '0.8rem', color: 'rgba(255,255,255,0.35)' }}>
+                    Need help? <a href="mailto:support@beebot.ai" style={{ color: '#FDD017', textDecoration: 'none' }}>Contact support</a>
                 </div>
             </div>
 
-            {/* ─── RIGHT CONTENT AREA (Forms) 70% ─── */}
-            <main style={{ flex: 1, display: 'flex', flexDirection: 'column', position: 'relative', overflowY: 'auto' }}>
+            {/* ── Right Panel (white, form) ───────────────────────────────────── */}
+            <main style={{ flex: 1, background: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '3rem 2rem', minHeight: '100vh', overflowY: 'auto' }}>
+                <div style={{ width: '100%', maxWidth: '520px' }}>
 
-                {/* Mobile Header (Hidden on Desktop) */}
-                <header className="show-mobile" style={{ padding: '1.5rem', display: 'flex', justifyContent: 'center', borderBottom: '1px solid var(--color-border)', background: 'var(--color-surface-2)' }}>
-                    <div className="flex items-center gap-3">
-                        <img src="/bee-yellow.jpg" alt="BeeBot Logo" style={{ width: '28px', height: '28px', borderRadius: '6px' }} />
-                        <span style={{ fontFamily: 'var(--font-display)', fontWeight: 800, fontSize: '1.1rem', color: 'var(--color-text)' }}>BeeBot Setup.</span>
+                    {/* Mobile logo */}
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '2rem' }} className="show-mobile">
+                        <img src="/bee-yellow.jpg" alt="BeeBot" style={{ width: '28px', height: '28px', borderRadius: '6px' }} />
+                        <span style={{ fontWeight: 800, fontSize: '1rem' }}>BeeBot</span>
                     </div>
-                </header>
 
-                <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '4rem 2rem' }}>
-                    <div className="card-asymmetric animate-fade-in" style={{ width: '100%', maxWidth: step === 1 ? '850px' : '520px', padding: '3.5rem', background: 'var(--color-white)', boxShadow: 'var(--shadow-md)', position: 'relative', zIndex: 10 }}>
+                    {/* Step counter */}
+                    <div style={{ fontSize: '0.78rem', fontWeight: 600, color: 'var(--color-accent-deep)', letterSpacing: '0.08em', textTransform: 'uppercase', marginBottom: '8px' }}>
+                        Step {step + 1} of {STEPS.length}
+                    </div>
 
-                        {error && <div className="alert alert-error mb-6">{error}</div>}
+                    {error && (
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '12px 16px', background: 'var(--color-error-bg)', color: 'var(--color-error)', borderRadius: '10px', marginBottom: '1.5rem', fontSize: '0.88rem' }}>
+                            <X size={14} style={{ flexShrink: 0 }} />
+                            {error}
+                            <button onClick={() => setError('')} style={{ marginLeft: 'auto', background: 'none', border: 'none', cursor: 'pointer', color: 'var(--color-error)' }}><X size={14} /></button>
+                        </div>
+                    )}
 
-                        {step === 0 && (
-                            <div>
-                                <div className="mb-8 relative" style={{ zIndex: 1 }}>
-                                    <h1 className="title mb-3" style={{ fontSize: '2.5rem', lineHeight: 1.1 }}>Step into the future.</h1>
-                                    <p className="text-muted" style={{ fontSize: '1.1rem' }}>First, tell us about your business so we can tailor the AI's core behavior.</p>
+                    {/* ─ Step 0: Welcome ─ */}
+                    {step === 0 && (
+                        <div className="animate-fade-in">
+                            <h1 style={{ fontSize: '2rem', fontWeight: 800, color: '#000', marginBottom: '8px', lineHeight: 1.15 }}>Welcome to BeeBot 👋</h1>
+                            <p style={{ color: 'var(--color-text-muted)', marginBottom: '2rem', lineHeight: 1.6 }}>Tell us about your business so we can tailor your AI chatbot.</p>
 
-                                    {/* Abstract Organic Bot Illustration */}
-                                    <svg width="80" height="80" viewBox="0 0 100 100" style={{ position: 'absolute', top: '-10px', right: '-10px', opacity: 0.1, zIndex: -1 }}>
-                                        <path d="M50 0 C77 0 100 23 100 50 C100 77 77 100 50 100 C23 100 0 77 0 50 C0 23 23 0 50 0 Z" fill="var(--color-primary-deep)"></path>
-                                    </svg>
-                                </div>
-
-                                <form onSubmit={handleBusinessSubmit} className="flex-col gap-5">
-                                    <div>
-                                        <label className="form-label">Company Name</label>
-                                        <div style={{ position: 'relative' }}>
-                                            <Store size={18} style={{ position: 'absolute', left: '14px', top: '14px', color: 'var(--color-text-faint)' }} />
-                                            <input type="text" value={businessForm.name} onChange={e => setBusinessForm({ ...businessForm, name: e.target.value })} className="input-field" style={{ paddingLeft: '44px', padding: '12px 12px 12px 44px', fontSize: '1.05rem', background: 'var(--color-surface)' }} placeholder="Acme Corp" required disabled={loading} />
-                                        </div>
-                                    </div>
-                                    <div>
-                                        <label className="form-label">Website URL</label>
-                                        <div style={{ position: 'relative' }}>
-                                            <Link size={18} style={{ position: 'absolute', left: '14px', top: '14px', color: 'var(--color-text-faint)' }} />
-                                            <input type="url" value={businessForm.website} onChange={e => setBusinessForm({ ...businessForm, website: e.target.value })} className="input-field" style={{ paddingLeft: '44px', padding: '12px 12px 12px 44px', fontSize: '1.05rem', background: 'var(--color-surface)' }} placeholder="https://acme.com" required disabled={loading} />
-                                        </div>
-                                        <p className="text-faint mt-2" style={{ fontSize: '0.85rem' }}>We use this to verify your domain and auto-sync pages.</p>
-                                    </div>
-
-                                    <button type="submit" className="btn-primary w-full mt-6" disabled={loading} style={{ padding: '16px', fontSize: '1.1rem', borderRadius: 'var(--radius-pill)', boxShadow: '0 4px 15px rgba(201,139,10,0.3)' }}>
-                                        {loading ? 'Saving...' : <>Continue to AI Setup <ArrowRight size={20} className="inline ml-2" /></>}
-                                    </button>
-                                </form>
-                            </div>
-                        )}
-
-                        {step === 1 && (
-                            <div style={{ display: 'grid', gridTemplateColumns: window.innerWidth > 900 ? '1.2fr 1fr' : '1fr', gap: '3rem' }}>
+                            <form onSubmit={handleBusinessSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
                                 <div>
-                                    <div className="mb-6">
-                                        <h1 className="title mb-2" style={{ fontSize: '2rem' }}>Configure your AI</h1>
-                                        <p className="text-muted" style={{ fontSize: '1rem' }}>Shape the personality your customers will talk to.</p>
-                                    </div>
-
-                                    <form onSubmit={handleChatbotSubmit} className="flex-col gap-4">
-                                        <div>
-                                            <label className="form-label">Bot Name</label>
-                                            <div style={{ position: 'relative' }}>
-                                                <Bot size={18} style={{ position: 'absolute', left: '14px', top: '14px', color: 'var(--color-text-faint)' }} />
-                                                <input type="text" value={chatbotForm.bot_name} onChange={e => setChatbotForm({ ...chatbotForm, bot_name: e.target.value })} className="input-field" style={{ paddingLeft: '44px', padding: '12px 12px 12px 44px', background: 'var(--color-surface)' }} required disabled={loading} />
-                                            </div>
-                                        </div>
-
-                                        <div>
-                                            <label className="form-label">Tone of Voice</label>
-                                            <select value={chatbotForm.tone} onChange={e => setChatbotForm({ ...chatbotForm, tone: e.target.value })} className="input-field" style={{ padding: '12px', background: 'var(--color-surface)' }} disabled={loading}>
-                                                <option value="professional">Professional & Direct</option>
-                                                <option value="friendly">Friendly & Casual</option>
-                                                <option value="persuasive">Persuasive (Sales-focused)</option>
-                                                <option value="empathetic">Empathetic & Warm</option>
-                                            </select>
-                                        </div>
-
-                                        <div>
-                                            <label className="form-label">Welcome Message</label>
-                                            <textarea value={chatbotForm.welcome_message} onChange={e => setChatbotForm({ ...chatbotForm, welcome_message: e.target.value })} className="input-field" rows="3" style={{ padding: '12px', background: 'var(--color-surface)' }} required disabled={loading}></textarea>
-                                        </div>
-
-                                        <button type="submit" className="btn-primary w-full mt-4" disabled={loading} style={{ padding: '16px', fontSize: '1.05rem', borderRadius: 'var(--radius-pill)' }}>
-                                            {loading ? 'Deploying Bot...' : <>Deploy Intelligence <CheckCircle size={20} className="inline ml-2" /></>}
-                                        </button>
-                                    </form>
+                                    <label className="form-label">Company Name <span style={{ color: 'var(--color-error)' }}>*</span></label>
+                                    <input
+                                        type="text" className="input-field"
+                                        style={{ padding: '12px 14px' }}
+                                        placeholder="Acme Corp"
+                                        value={businessForm.name}
+                                        onChange={e => setBusinessForm({ ...businessForm, name: e.target.value })}
+                                        required disabled={loading}
+                                    />
+                                </div>
+                                <div>
+                                    <label className="form-label">Industry / Website URL</label>
+                                    <input
+                                        type="text" className="input-field"
+                                        style={{ padding: '12px 14px' }}
+                                        placeholder="e.g. E-commerce, SaaS, or https://acme.com"
+                                        value={businessForm.industry}
+                                        onChange={e => setBusinessForm({ ...businessForm, industry: e.target.value })}
+                                        disabled={loading}
+                                    />
+                                    <p style={{ fontSize: '0.78rem', color: 'var(--color-text-faint)', marginTop: '6px' }}>Helps the AI understand your domain context.</p>
                                 </div>
 
-                                {/* Live Preview Panel */}
-                                <div style={{ background: 'var(--color-surface-2)', borderRadius: 'var(--radius-xl)', padding: '2rem', display: 'flex', flexDirection: 'column', border: '1px solid var(--color-border)', position: 'relative' }}>
-
-                                    <div style={{ position: 'absolute', top: '-15px', right: '15px', background: 'var(--color-white)', padding: '4px 12px', borderRadius: 'var(--radius-pill)', fontSize: '0.8rem', fontWeight: 700, color: 'var(--color-primary-deep)', border: '1px solid var(--color-border)', boxShadow: 'var(--shadow-sm)', zIndex: 10 }}>LIVE PREVIEW</div>
-
-                                    <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '1.5rem', paddingBottom: '1rem', borderBottom: '1px solid var(--color-border)' }}>
-                                        <div style={{ width: '40px', height: '40px', borderRadius: '50%', background: 'var(--color-primary)', overflow: 'hidden', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                                            <img src="/bee-chat.png" alt="Bot" style={{ width: '100%', height: '100%', objectFit: 'cover' }} onError={e => { e.target.style.display='none'; }} />
-                                        </div>
-                                        <div>
-                                            <div style={{ fontWeight: 600, color: 'var(--color-text)', lineHeight: 1.2 }}>{chatbotForm.bot_name || 'Bot Name'}</div>
-                                            <div style={{ fontSize: '0.8rem', color: 'var(--color-success)', display: 'flex', alignItems: 'center', gap: '4px' }}>
-                                                <div style={{ width: '6px', height: '6px', borderRadius: '50%', background: 'var(--color-success)' }}></div> Online
-                                            </div>
-                                        </div>
-                                    </div>
-
-                                    <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '16px' }}>
-                                        <div className="animate-fade-in" style={{ alignSelf: 'flex-start', background: 'var(--color-white)', padding: '16px', borderRadius: '16px 16px 16px 4px', fontSize: '0.95rem', boxShadow: 'var(--shadow-sm)', maxWidth: '90%', border: '1px solid var(--color-border)' }}>
-                                            {chatbotForm.welcome_message || 'Type a welcome message...'}
-                                        </div>
-                                        <div className="animate-fade-in" style={{ alignSelf: 'flex-end', background: 'var(--color-primary)', color: 'white', padding: '16px', borderRadius: '16px 16px 4px 16px', fontSize: '0.95rem', boxShadow: '0 4px 12px rgba(201,139,10,0.3)', maxWidth: '90%', animationDelay: '0.5s', animationFillMode: 'both' }}>
-                                            How does your pricing work?
-                                        </div>
-                                        <div className="animate-fade-in" style={{ alignSelf: 'flex-start', background: 'var(--color-white)', padding: '16px', borderRadius: '16px 16px 16px 4px', fontSize: '0.95rem', boxShadow: 'var(--shadow-sm)', maxWidth: '90%', display: 'flex', alignItems: 'center', gap: '8px', border: '1px solid var(--color-border)', animationDelay: '1s', animationFillMode: 'both' }}>
-                                            <span className="animate-pulse" style={{ display: 'flex', gap: '4px' }}>
-                                                <div style={{ width: '6px', height: '6px', background: 'var(--color-text-faint)', borderRadius: '50%' }}></div>
-                                                <div style={{ width: '6px', height: '6px', background: 'var(--color-text-faint)', borderRadius: '50%' }}></div>
-                                                <div style={{ width: '6px', height: '6px', background: 'var(--color-text-faint)', borderRadius: '50%' }}></div>
-                                            </span>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-                        )}
-
-                        {step === 2 && (
-                            <div className="text-center animate-fade-in" style={{ padding: '3rem 0' }}>
-                                <div style={{ width: '100px', height: '100px', borderRadius: '50%', background: 'var(--color-success-light)', margin: '0 auto 2.5rem', display: 'flex', alignItems: 'center', justifyContent: 'center', position: 'relative' }}>
-                                    <div style={{ position: 'absolute', inset: -10, border: '2px dashed var(--color-success)', borderRadius: '50%', opacity: 0.3, animation: 'spin 10s linear infinite' }}></div>
-                                    <Hexagon size={50} color="var(--color-success)" style={{ transform: 'rotate(90deg)' }} />
-                                    <CheckCircle size={24} color="var(--color-white)" style={{ position: 'absolute', fill: 'var(--color-success)' }} />
-                                </div>
-                                <h1 className="title mb-4" style={{ fontSize: '2.5rem' }}>You're ready to launch!</h1>
-                                <p className="text-muted mb-8" style={{ fontSize: '1.15rem', maxWidth: '400px', margin: '0 auto 3rem', lineHeight: 1.6 }}>
-                                    Your business profile is set and your AI is deployed. Next, let's take a quick 2-minute tour of your new command center.
-                                </p>
-                                <button
-                                    className="btn-primary"
-                                    onClick={() => {
-                                        startTour();
-                                        navigate('/dashboard');
-                                    }}
-                                    style={{ padding: '18px 40px', fontSize: '1.15rem', borderRadius: 'var(--radius-pill)', boxShadow: '0 8px 30px rgba(201,139,10,0.4)', position: 'relative' }}
+                                <button type="submit" disabled={loading || !businessForm.name} style={{ marginTop: '0.5rem', padding: '14px', background: '#000', color: '#fff', border: 'none', borderRadius: '10px', fontFamily: 'inherit', fontSize: '0.95rem', fontWeight: 600, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', transition: 'background 0.2s', opacity: loading || !businessForm.name ? 0.6 : 1 }}
+                                    onMouseEnter={e => e.currentTarget.style.background = '#FDD017'}
+                                    onMouseLeave={e => e.currentTarget.style.background = '#000'}
                                 >
-                                    Enter Dashboard <ArrowRight size={20} className="inline ml-2" />
-                                    {/* Hand-drawn pointer connecting to CTA */}
-                                    <svg width="60" height="60" style={{ position: 'absolute', right: '-40px', bottom: '-40px', color: 'var(--color-primary-deep)', transform: 'rotate(-20deg)', pointerEvents: 'none' }}>
-                                        <path d="M10,50 Q30,-10 50,10" fill="none" stroke="currentColor" strokeWidth="2" />
-                                        <polygon points="45,5 50,10 55,15" fill="currentColor" />
-                                    </svg>
+                                    {loading ? 'Saving...' : <><span>Continue</span><ArrowRight size={16} /></>}
                                 </button>
+                            </form>
+                        </div>
+                    )}
+
+                    {/* ─ Step 1: Bot Personality ─ */}
+                    {step === 1 && (
+                        <div className="animate-fade-in">
+                            <h1 style={{ fontSize: '2rem', fontWeight: 800, color: '#000', marginBottom: '8px', lineHeight: 1.15 }}>Bot Personality</h1>
+                            <p style={{ color: 'var(--color-text-muted)', marginBottom: '2rem', lineHeight: 1.6 }}>Shape the voice and style your visitors will interact with.</p>
+
+                            <form onSubmit={handleChatbotSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
+                                <div>
+                                    <label className="form-label">Bot Name</label>
+                                    <input
+                                        type="text" className="input-field"
+                                        style={{ padding: '12px 14px' }}
+                                        value={chatbotForm.bot_name}
+                                        onChange={e => setChatbotForm({ ...chatbotForm, bot_name: e.target.value })}
+                                        required disabled={loading}
+                                        placeholder="Support Bee"
+                                    />
+                                </div>
+
+                                <div>
+                                    <label className="form-label" style={{ marginBottom: '10px' }}>Tone of Voice</label>
+                                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px' }}>
+                                        {TONES.map(t => (
+                                            <button
+                                                key={t.value} type="button"
+                                                onClick={() => setChatbotForm({ ...chatbotForm, tone: t.value })}
+                                                style={{
+                                                    padding: '12px 14px', borderRadius: '10px', textAlign: 'left', cursor: 'pointer',
+                                                    border: chatbotForm.tone === t.value ? '2px solid #FDD017' : '2px solid var(--color-border)',
+                                                    background: chatbotForm.tone === t.value ? '#FFFBDC' : '#fff',
+                                                    fontFamily: 'inherit', transition: 'all 0.15s'
+                                                }}
+                                            >
+                                                <div style={{ fontSize: '1.2rem', marginBottom: '2px' }}>{t.emoji}</div>
+                                                <div style={{ fontWeight: 600, fontSize: '0.85rem', color: '#000' }}>{t.label}</div>
+                                                <div style={{ fontSize: '0.75rem', color: 'var(--color-text-muted)', marginTop: '1px' }}>{t.desc}</div>
+                                            </button>
+                                        ))}
+                                    </div>
+                                </div>
+
+                                <div>
+                                    <label className="form-label">Welcome Message</label>
+                                    <textarea
+                                        className="input-field"
+                                        style={{ padding: '12px 14px', resize: 'vertical', minHeight: '80px' }}
+                                        value={chatbotForm.welcome_message}
+                                        onChange={e => setChatbotForm({ ...chatbotForm, welcome_message: e.target.value })}
+                                        required disabled={loading}
+                                        placeholder="Hi there! How can I help you today?"
+                                    />
+                                </div>
+
+                                <div style={{ display: 'flex', gap: '10px', marginTop: '0.5rem' }}>
+                                    <button type="button" onClick={() => setStep(0)} style={{ flex: 1, padding: '13px', background: '#fff', color: '#000', border: '1.5px solid var(--color-border)', borderRadius: '10px', fontFamily: 'inherit', fontSize: '0.9rem', cursor: 'pointer' }}>
+                                        Back
+                                    </button>
+                                    <button type="submit" disabled={loading} style={{ flex: 2, padding: '13px', background: '#000', color: '#fff', border: 'none', borderRadius: '10px', fontFamily: 'inherit', fontSize: '0.95rem', fontWeight: 600, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', opacity: loading ? 0.6 : 1, transition: 'background 0.2s' }}
+                                        onMouseEnter={e => e.currentTarget.style.background = '#FDD017'}
+                                        onMouseLeave={e => e.currentTarget.style.background = '#000'}
+                                    >
+                                        {loading ? 'Saving...' : <><span>Continue</span><ArrowRight size={16} /></>}
+                                    </button>
+                                </div>
+                            </form>
+                        </div>
+                    )}
+
+                    {/* ─ Step 2: Knowledge Base ─ */}
+                    {step === 2 && (
+                        <div className="animate-fade-in">
+                            <h1 style={{ fontSize: '2rem', fontWeight: 800, color: '#000', marginBottom: '8px', lineHeight: 1.15 }}>Add Knowledge</h1>
+                            <p style={{ color: 'var(--color-text-muted)', marginBottom: '2rem', lineHeight: 1.6 }}>Upload a document or add a URL so your bot can answer questions about your business.</p>
+
+                            {/* Mode toggle */}
+                            <div style={{ display: 'flex', gap: '0', border: '1.5px solid var(--color-border)', borderRadius: '10px', overflow: 'hidden', marginBottom: '1.25rem' }}>
+                                {[{ id: 'url', label: 'URL', icon: <Link2 size={14} /> }, { id: 'file', label: 'File Upload', icon: <FileText size={14} /> }].map(m => (
+                                    <button key={m.id} type="button" onClick={() => setKbMode(m.id)} style={{ flex: 1, padding: '10px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px', background: kbMode === m.id ? '#000' : '#fff', color: kbMode === m.id ? '#FDD017' : 'var(--color-text-muted)', border: 'none', fontFamily: 'inherit', fontSize: '0.85rem', fontWeight: 500, cursor: 'pointer', transition: 'all 0.15s' }}>
+                                        {m.icon} {m.label}
+                                    </button>
+                                ))}
                             </div>
-                        )}
-                    </div>
+
+                            <form onSubmit={handleKbSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+                                {kbMode === 'url' ? (
+                                    <div>
+                                        <label className="form-label">Website or Doc URL</label>
+                                        <input
+                                            type="url" className="input-field"
+                                            style={{ padding: '12px 14px' }}
+                                            placeholder="https://yoursite.com/docs"
+                                            value={kbUrl}
+                                            onChange={e => setKbUrl(e.target.value)}
+                                            disabled={kbUploading}
+                                        />
+                                        <p style={{ fontSize: '0.78rem', color: 'var(--color-text-faint)', marginTop: '6px' }}>We'll crawl this URL and extract knowledge for your bot.</p>
+                                    </div>
+                                ) : (
+                                    <div
+                                        onDragOver={e => { e.preventDefault(); setDragOver(true); }}
+                                        onDragLeave={() => setDragOver(false)}
+                                        onDrop={handleFileDrop}
+                                        onClick={() => fileInputRef.current?.click()}
+                                        style={{
+                                            border: `2px dashed ${dragOver ? '#FDD017' : 'var(--color-border)'}`,
+                                            borderRadius: '12px', padding: '2.5rem 1.5rem', textAlign: 'center', cursor: 'pointer',
+                                            background: dragOver ? '#FFFBDC' : 'var(--color-surface)', transition: 'all 0.2s'
+                                        }}
+                                    >
+                                        <Upload size={28} color={dragOver ? '#C8A000' : 'var(--color-text-faint)'} style={{ margin: '0 auto 10px' }} />
+                                        {kbFile ? (
+                                            <div>
+                                                <div style={{ fontWeight: 600, color: '#000', marginBottom: '4px' }}>{kbFile.name}</div>
+                                                <div style={{ fontSize: '0.8rem', color: 'var(--color-text-faint)' }}>{(kbFile.size / 1024).toFixed(1)} KB · Click to change</div>
+                                            </div>
+                                        ) : (
+                                            <div>
+                                                <div style={{ fontWeight: 600, color: '#000', marginBottom: '4px' }}>Drop your file here or click to browse</div>
+                                                <div style={{ fontSize: '0.8rem', color: 'var(--color-text-faint)' }}>Supports PDF, DOCX, TXT, CSV (max 10MB)</div>
+                                            </div>
+                                        )}
+                                        <input ref={fileInputRef} type="file" style={{ display: 'none' }} accept=".pdf,.docx,.txt,.csv" onChange={e => { if (e.target.files?.[0]) setKbFile(e.target.files[0]); }} />
+                                    </div>
+                                )}
+
+                                <div style={{ display: 'flex', gap: '10px', marginTop: '0.5rem' }}>
+                                    <button type="button" onClick={() => setStep(1)} style={{ flex: 1, padding: '13px', background: '#fff', color: '#000', border: '1.5px solid var(--color-border)', borderRadius: '10px', fontFamily: 'inherit', fontSize: '0.9rem', cursor: 'pointer' }}>
+                                        Back
+                                    </button>
+                                    <button type="submit" disabled={kbUploading || (!kbUrl && !kbFile)} style={{ flex: 2, padding: '13px', background: '#000', color: '#fff', border: 'none', borderRadius: '10px', fontFamily: 'inherit', fontSize: '0.95rem', fontWeight: 600, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', opacity: (kbUploading || (!kbUrl && !kbFile)) ? 0.6 : 1 }}>
+                                        {kbUploading ? 'Uploading...' : kbDone ? <><CheckCircle size={15} /> Done!</> : <><span>Upload & Continue</span><ArrowRight size={16} /></>}
+                                    </button>
+                                </div>
+
+                                <button type="button" onClick={() => setStep(3)} style={{ background: 'none', border: 'none', color: 'var(--color-text-faint)', fontSize: '0.82rem', cursor: 'pointer', textDecoration: 'underline', fontFamily: 'inherit', marginTop: '4px' }}>
+                                    Skip for now — I'll add knowledge later
+                                </button>
+                            </form>
+                        </div>
+                    )}
+
+                    {/* ─ Step 3: Embed ─ */}
+                    {step === 3 && (
+                        <div className="animate-fade-in">
+                            <div style={{ width: '56px', height: '56px', borderRadius: '50%', background: '#FFFBDC', border: '2px solid #FDD017', display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: '1.25rem' }}>
+                                <CheckCircle size={26} color="#C8A000" />
+                            </div>
+                            <h1 style={{ fontSize: '2rem', fontWeight: 800, color: '#000', marginBottom: '8px', lineHeight: 1.15 }}>You're all set!</h1>
+                            <p style={{ color: 'var(--color-text-muted)', marginBottom: '2rem', lineHeight: 1.6 }}>Add this script to your website to go live. Your API key and config are already embedded.</p>
+
+                            {/* Script tag preview */}
+                            <div style={{ background: '#0d0d0d', borderRadius: '12px', overflow: 'hidden', border: '1px solid #2a2a2a', marginBottom: '1.5rem' }}>
+                                <div style={{ padding: '10px 14px', background: '#1a1a1a', borderBottom: '1px solid #2a2a2a', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                                    <span style={{ width: '10px', height: '10px', borderRadius: '50%', background: '#ff5f57', display: 'inline-block' }} />
+                                    <span style={{ width: '10px', height: '10px', borderRadius: '50%', background: '#ffbd2e', display: 'inline-block' }} />
+                                    <span style={{ width: '10px', height: '10px', borderRadius: '50%', background: '#28c840', display: 'inline-block' }} />
+                                    <span style={{ marginLeft: 'auto', fontSize: '0.72rem', color: '#666', fontFamily: 'var(--font-mono)' }}>HTML</span>
+                                </div>
+                                <pre style={{ margin: 0, padding: '16px 18px', fontFamily: 'var(--font-mono)', fontSize: '0.78rem', color: '#e0e0e0', lineHeight: 1.8, overflowX: 'auto', whiteSpace: 'pre' }}>
+                                    <span style={{ color: '#7dd3fc' }}>&lt;script</span>{'\n'}
+                                    {'  '}<span style={{ color: '#a5f3fc' }}>src</span>=<span style={{ color: '#fde68a' }}>"https://beebot-ai.vercel.app/widget.js"</span>{'\n'}
+                                    {'  '}<span style={{ color: '#a5f3fc' }}>data-api-key</span>=<span style={{ color: '#fde68a' }}>"YOUR_API_KEY"</span>{'\n'}
+                                    {'  '}<span style={{ color: '#a5f3fc' }}>data-api-url</span>=<span style={{ color: '#fde68a' }}>"https://beebot-backend.onrender.com"</span>{'\n'}
+                                    {'  '}<span style={{ color: '#a5f3fc' }}>defer</span><span style={{ color: '#7dd3fc' }}>&gt;&lt;/script&gt;</span>
+                                </pre>
+                            </div>
+
+                            <div style={{ padding: '12px 16px', background: '#FFFBDC', border: '1.5px solid #FDD017', borderRadius: '10px', fontSize: '0.82rem', color: '#7a5c00', marginBottom: '1.5rem' }}>
+                                Get your exact API key from <strong>Dashboard → Install</strong> tab after setup.
+                            </div>
+
+                            <button
+                                onClick={() => { startTour(); navigate('/dashboard'); }}
+                                style={{ width: '100%', padding: '15px', background: '#000', color: '#fff', border: 'none', borderRadius: '10px', fontFamily: 'inherit', fontSize: '1rem', fontWeight: 600, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', transition: 'background 0.2s' }}
+                                onMouseEnter={e => e.currentTarget.style.background = '#FDD017'}
+                                onMouseLeave={e => e.currentTarget.style.background = '#000'}
+                            >
+                                Launch Dashboard <ArrowRight size={16} />
+                            </button>
+                        </div>
+                    )}
+
                 </div>
-
-                {/* Decorative Blob in Right Content Background */}
-                <div style={{ position: 'absolute', right: '-10%', bottom: '-10%', width: '500px', height: '500px', background: 'var(--color-primary-light)', borderRadius: '50%', filter: 'blur(80px)', opacity: 0.3, zIndex: 0, pointerEvents: 'none' }}></div>
-
             </main>
         </div>
     );
