@@ -5,6 +5,13 @@ import LandingPage from './components/LandingPage';
 import Auth from './components/Auth';
 import Dashboard from './components/Dashboard';
 import Onboarding from './components/Onboarding';
+import PrivacyPage from './pages/PrivacyPage';
+import TermsPage from './pages/TermsPage';
+import BlogPage from './pages/BlogPage';
+import DocsPage from './pages/DocsPage';
+import ContactPage from './pages/ContactPage';
+import ChangelogPage from './pages/ChangelogPage';
+import RoadmapPage from './pages/RoadmapPage';
 
 // Requires login. If logged in but no business profile → /onboarding. Otherwise → children.
 const ProtectedRoute = ({ children }) => {
@@ -71,6 +78,14 @@ function App() {
                     <Dashboard />
                 </ProtectedRoute>
             } />
+            {/* Public pages */}
+            <Route path="/privacy" element={<PrivacyPage />} />
+            <Route path="/terms" element={<TermsPage />} />
+            <Route path="/blog" element={<BlogPage />} />
+            <Route path="/docs" element={<DocsPage />} />
+            <Route path="/contact" element={<ContactPage />} />
+            <Route path="/changelog" element={<ChangelogPage />} />
+            <Route path="/roadmap" element={<RoadmapPage />} />
         </Routes>
     );
 }

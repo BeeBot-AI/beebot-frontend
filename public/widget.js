@@ -877,6 +877,58 @@
       .bb-bubble em { font-style: italic; }
       .bb-bubble del { text-decoration: line-through; opacity: 0.7; }
 
+      /* Resolution prompt */
+      .bb-resolve-prompt {
+        margin: 6px 0 4px 0;
+        padding: 10px 14px;
+        background: #FFFBEB;
+        border: 1px solid #FCD34D;
+        border-radius: 12px;
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+        animation: bbSlideIn 0.3s ease both;
+      }
+      .bb-resolve-prompt p {
+        font-size: 12.5px;
+        color: #78350F;
+        font-weight: 500;
+        margin: 0;
+        line-height: 1.4;
+      }
+      .bb-resolve-btns {
+        display: flex;
+        gap: 6px;
+      }
+      .bb-resolve-yes, .bb-resolve-no {
+        flex: 1;
+        padding: 6px 10px;
+        border-radius: 8px;
+        font-size: 12px;
+        font-weight: 600;
+        cursor: pointer;
+        border: none;
+        outline: none;
+        transition: opacity 0.2s;
+        min-height: 32px;
+      }
+      .bb-resolve-yes:hover, .bb-resolve-no:hover { opacity: 0.85; }
+      .bb-resolve-yes {
+        background: #FFC107;
+        color: #000;
+      }
+      .bb-resolve-no {
+        background: #F3F4F6;
+        color: #374151;
+      }
+      .bb-resolve-done {
+        font-size: 12px;
+        color: #6B7280;
+        font-style: italic;
+        text-align: center;
+        padding: 4px 0;
+      }
+
       /* Timestamp */
       .bb-ts {
         font-size: 10.5px;
@@ -1593,6 +1645,53 @@
     inputEl.addEventListener('input', autoResizeInput);
 
     /* ─────────────────────────────────────────────
+       RESOLUTION CONFIRMATION PROMPT
+    ───────────────────────────────────────────── */
+    const showResolutionPrompt = (convId) => {
+      // Remove any existing prompt first (only one at a time)
+      const existing = messagesEl.querySelector('.bb-resolve-prompt');
+      if (existing) existing.remove();
+
+      const prompt = document.createElement('div');
+      prompt.className = 'bb-resolve-prompt';
+      prompt.innerHTML = `
+        <p>Did this answer your question?</p>
+        <div class="bb-resolve-btns">
+          <button class="bb-resolve-yes" type="button">Yes, resolved ✓</button>
+          <button class="bb-resolve-no"  type="button">No, I need more help</button>
+        </div>
+      `;
+
+      const yesBtn = prompt.querySelector('.bb-resolve-yes');
+      const noBtn  = prompt.querySelector('.bb-resolve-no');
+
+      yesBtn.addEventListener('click', async () => {
+        yesBtn.disabled = true;
+        noBtn.disabled  = true;
+        prompt.innerHTML = '<p class="bb-resolve-done">Great! Glad we could help 🐝</p>';
+        // Log the resolution — fire-and-forget, never double-count
+        if (convId) {
+          try {
+            await fetch(`${API_URL}/chat/resolve`, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json', 'x-api-key': API_KEY },
+              body: JSON.stringify({ conversation_id: convId, visitor_id: VISITOR_ID, resolved: true }),
+            });
+          } catch (_) { /* non-blocking */ }
+        }
+        setTimeout(() => { if (prompt.parentNode) prompt.remove(); }, 3000);
+      });
+
+      noBtn.addEventListener('click', () => {
+        // No charge — just remove the prompt
+        if (prompt.parentNode) prompt.remove();
+      });
+
+      messagesEl.insertBefore(prompt, typingEl);
+      scrollToBottom();
+    };
+
+    /* ─────────────────────────────────────────────
        SEND MESSAGE
     ───────────────────────────────────────────── */
     const dispatchSend = async () => {
@@ -1625,6 +1724,8 @@
         if (res.ok && data.response) {
           addMessage(data.response, 'bot', Date.now());
           if (data.conversation_id) conversationId = data.conversation_id;
+          // Show resolution confirmation — only after a non-error bot reply
+          showResolutionPrompt(conversationId);
           if (!isOpen) {
             unreadCount++;
             badge.textContent = unreadCount > 9 ? '9+' : String(unreadCount);
