@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { Database, MessageSquare, Plus, ArrowRight, CheckCircle, Zap, Users } from 'lucide-react';
+import { Database, MessageSquare, Plus, ArrowRight, CheckCircle, Zap, Users, BadgeCheck } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import config from '../../config';
@@ -8,20 +8,25 @@ function OverviewTab({ business, bot }) {
     const navigate = useNavigate();
     const [stats, setStats] = useState(null);
     const [knowledgeCount, setKnowledgeCount] = useState(null);
+    const [resolutionsThisMonth, setResolutionsThisMonth] = useState(null);
     const [statsLoading, setStatsLoading] = useState(true);
 
     useEffect(() => {
         const fetchStats = async () => {
             try {
-                const [statsRes, knowledgeRes] = await Promise.all([
+                const [statsRes, knowledgeRes, resRes] = await Promise.allSettled([
                     axios.get(`${config.API_BASE_URL}/conversations/stats`, { withCredentials: true }),
-                    axios.get(`${config.API_BASE_URL}/knowledge`, { withCredentials: true })
+                    axios.get(`${config.API_BASE_URL}/knowledge`,           { withCredentials: true }),
+                    axios.get(`${config.API_BASE_URL}/resolutions/stats`,   { withCredentials: true }),
                 ]);
-                if (statsRes.data.success) {
-                    setStats(statsRes.data.stats);
+                if (statsRes.status === 'fulfilled' && statsRes.value.data.success) {
+                    setStats(statsRes.value.data.stats);
                 }
-                if (knowledgeRes.data.success) {
-                    setKnowledgeCount(knowledgeRes.data.sources?.length ?? 0);
+                if (knowledgeRes.status === 'fulfilled' && knowledgeRes.value.data.success) {
+                    setKnowledgeCount(knowledgeRes.value.data.sources?.length ?? 0);
+                }
+                if (resRes.status === 'fulfilled' && resRes.value.data.success) {
+                    setResolutionsThisMonth(resRes.value.data.stats?.thisMonth ?? 0);
                 }
             } catch (err) {
                 console.error('Failed to load overview stats', err);
@@ -46,6 +51,13 @@ function OverviewTab({ business, bot }) {
             icon: <MessageSquare size={22} />,
             color: 'var(--color-white)',
             bg: 'var(--color-primary)',
+        },
+        {
+            label: 'Resolutions This Month',
+            value: statsLoading ? '—' : (resolutionsThisMonth ?? 0),
+            icon: <BadgeCheck size={22} />,
+            color: '#065F46',
+            bg: '#D1FAE5',
         },
         {
             label: 'Knowledge Sources',

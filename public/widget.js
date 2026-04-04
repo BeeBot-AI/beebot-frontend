@@ -1,5 +1,5 @@
 /**
- * BeeBot Chat Widget v3 — Intercom Fin–style
+ * BeeBot Chat Widget — v3 Logic + v4 UI
  * Drop-in chat widget. Reads config from <script> tag attributes.
  *
  * Usage:
@@ -81,36 +81,22 @@
   const renderMarkdown = (text) => {
     if (!text) return '';
 
-    // Escape HTML first
     let html = text
       .replace(/&/g, '&amp;')
       .replace(/</g, '&lt;')
       .replace(/>/g, '&gt;');
 
-    // Code blocks (``` ... ```)
     html = html.replace(/```([\s\S]*?)```/g, (_, code) =>
       `<pre class="bb-code-block"><code>${code.trim()}</code></pre>`
     );
-
-    // Inline code
     html = html.replace(/`([^`\n]+)`/g, '<code class="bb-inline-code">$1</code>');
-
-    // Bold + italic  ***text***
     html = html.replace(/\*\*\*(.+?)\*\*\*/g, '<strong><em>$1</em></strong>');
-    // Bold  **text**
     html = html.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
-    // Italic  *text*
     html = html.replace(/\*([^*\n]+)\*/g, '<em>$1</em>');
-
-    // Strikethrough  ~~text~~
     html = html.replace(/~~(.+?)~~/g, '<del>$1</del>');
-
-    // Headings (## H2, ### H3)
     html = html.replace(/^### (.+)$/gm, '<h4 class="bb-md-h3">$1</h4>');
     html = html.replace(/^## (.+)$/gm,  '<h3 class="bb-md-h2">$1</h3>');
     html = html.replace(/^# (.+)$/gm,   '<h2 class="bb-md-h1">$1</h2>');
-
-    // Numbered lists
     html = html.replace(/((?:^\d+\..+\n?)+)/gm, (block) => {
       const items = block.trim().split('\n').map((line) => {
         const m = line.match(/^\d+\.\s+(.*)/);
@@ -118,8 +104,6 @@
       }).join('');
       return `<ol class="bb-md-ol">${items}</ol>`;
     });
-
-    // Bullet lists  - or *
     html = html.replace(/((?:^[-*]\s.+\n?)+)/gm, (block) => {
       const items = block.trim().split('\n').map((line) => {
         const m = line.match(/^[-*]\s+(.*)/);
@@ -127,26 +111,17 @@
       }).join('');
       return `<ul class="bb-md-ul">${items}</ul>`;
     });
-
-    // Blockquote  > text
     html = html.replace(/^&gt;\s?(.+)$/gm, '<blockquote class="bb-md-quote">$1</blockquote>');
-
-    // Horizontal rule
     html = html.replace(/^---$/gm, '<hr class="bb-md-hr">');
-
-    // Links  [text](url)
     html = html.replace(
       /\[([^\]]+)\]\((https?:\/\/[^)]+)\)/g,
       '<a href="$2" target="_blank" rel="noopener noreferrer" class="bb-md-link">$1</a>'
     );
-
-    // Line breaks (double newline → paragraph break, single → <br>)
     html = html
       .split(/\n{2,}/)
       .map((para) => {
         para = para.trim();
         if (!para) return '';
-        // Don't wrap block-level elements in <p>
         if (/^<(ul|ol|pre|blockquote|h[2-4]|hr)/.test(para)) return para;
         return `<p class="bb-md-p">${para.replace(/\n/g, '<br>')}</p>`;
       })
@@ -183,14 +158,27 @@
    * 7. BUILD WIDGET
    * ───────────────────────────────────────────────────────────────────────── */
   const buildWidget = (botConfig) => {
-    const PRIMARY    = botConfig.primary_color  || '#6C47FF'; // Intercom-like purple default
-    const BOT_NAME   = botConfig.bot_name       || 'BeeBot Support';
-    const TAGLINE    = botConfig.tagline        || 'AI-powered support, always on';
-    const WELCOME    = botConfig.welcome_message || `Hi there 👋\nWelcome to ${BOT_NAME}!`;
-    const STARTERS   = Array.isArray(botConfig.conversation_starters) ? botConfig.conversation_starters : [];
+    const PRIMARY  = botConfig.primary_color   || '#6C47FF';
+    const BOT_NAME = botConfig.bot_name        || 'BeeBot Support';
+    const TAGLINE  = botConfig.tagline         || 'AI-powered support, always on';
+    const WELCOME  = botConfig.welcome_message || `Hi there 👋\nWelcome to ${BOT_NAME}!`;
+    const STARTERS = Array.isArray(botConfig.conversation_starters) ? botConfig.conversation_starters : [];
+
+    // Derive a slightly darker shade for gradient
+    const PRIMARY_DARK = adjustColor(PRIMARY, -20);
+
+    function adjustColor(hex, amount) {
+      try {
+        const num = parseInt(hex.replace('#', ''), 16);
+        const r = Math.min(255, Math.max(0, (num >> 16) + amount));
+        const g = Math.min(255, Math.max(0, ((num >> 8) & 0xFF) + amount));
+        const b = Math.min(255, Math.max(0, (num & 0xFF) + amount));
+        return '#' + ((r << 16) | (g << 8) | b).toString(16).padStart(6, '0');
+      } catch (_) { return hex; }
+    }
 
     const savedSession  = loadSession();
-    let sessionMessages = savedSession ? savedSession.messages  : [];
+    let sessionMessages = savedSession ? savedSession.messages      : [];
     let conversationId  = savedSession ? savedSession.conversationId : null;
     let unreadCount     = 0;
     let isBusy          = false;
@@ -199,105 +187,127 @@
 
     /* ── SVG ICONS ── */
     const IC = {
-      send: `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="m22 2-7 20-4-9-9-4Z"/><path d="M22 2 11 13"/></svg>`,
+      send: `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="m22 2-7 20-4-9-9-4Z"/><path d="M22 2 11 13"/></svg>`,
       close: `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6 6 18M6 6l12 12"/></svg>`,
-      back: `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="m15 18-6-6 6-6"/></svg>`,
-      more: `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="5" r="1" fill="currentColor"/><circle cx="12" cy="12" r="1" fill="currentColor"/><circle cx="12" cy="19" r="1" fill="currentColor"/></svg>`,
-      chat: `<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>`,
-      home: `<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m3 9 9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>`,
+      back: `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="m15 18-6-6 6-6"/></svg>`,
+      more: `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="5" r="1.2" fill="currentColor"/><circle cx="12" cy="12" r="1.2" fill="currentColor"/><circle cx="12" cy="19" r="1.2" fill="currentColor"/></svg>`,
+      chat: `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>`,
       agent: `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>`,
-      bot: `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="10" rx="2"/><circle cx="12" cy="5" r="2"/><path d="M12 7v4"/><line x1="8" y1="16" x2="8" y2="16"/><line x1="16" y1="16" x2="16" y2="16"/></svg>`,
-      chevronRight: `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="m9 18 6-6-6-6"/></svg>`,
-      emoji: `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M8 14s1.5 2 4 2 4-2 4-2"/><line x1="9" y1="9" x2="9.01" y2="9"/><line x1="15" y1="9" x2="15.01" y2="9"/></svg>`,
-      attach: `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m21.44 11.05-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"/></svg>`,
-      newChat: `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14M5 12h14"/></svg>`,
-      sparkle: `<svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2L9.5 9.5 2 12l7.5 2.5L12 22l2.5-7.5L22 12l-7.5-2.5L12 2z"/></svg>`,
+      bot: `<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="10" rx="2"/><circle cx="12" cy="5" r="2"/><path d="M12 7v4"/></svg>`,
+      chevronRight: `<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="m9 18 6-6-6-6"/></svg>`,
+      sparkle: `<svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2L9.5 9.5 2 12l7.5 2.5L12 22l2.5-7.5L22 12l-7.5-2.5L12 2z"/></svg>`,
+      newChat: `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14M5 12h14"/></svg>`,
     };
 
-    /* ── CSS ── */
+    /* ── CSS (v4 Design) ── */
     const CSS = `
+      @import url('https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700;1,9..40,400&display=swap');
+
       *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
       /* ══════════════════════════════════════════════
-         LAUNCHER BUBBLE
+         LAUNCHER BUBBLE — bigger icon (68px)
       ══════════════════════════════════════════════ */
       #bb-launcher {
         position: fixed;
-        bottom: 24px;
-        right: 24px;
-        width: 58px;
-        height: 58px;
+        bottom: 28px;
+        right: 28px;
+        width: 68px;
+        height: 68px;
         border-radius: 50%;
         background: ${PRIMARY};
         border: none;
         cursor: pointer;
-        box-shadow: 0 4px 20px rgba(0,0,0,0.25), 0 0 0 0 rgba(108,71,255,0.4);
         display: flex;
         align-items: center;
         justify-content: center;
         z-index: 2147483646;
-        transition: transform 0.2s cubic-bezier(.34,1.56,.64,1), box-shadow 0.2s ease;
+        transition: transform 0.25s cubic-bezier(.34,1.56,.64,1), box-shadow 0.25s ease;
         outline: none;
-        overflow: hidden;
+        overflow: visible;
+        box-shadow: 0 4px 24px rgba(0,0,0,0.22), 0 2px 8px rgba(0,0,0,0.12);
       }
       #bb-launcher:hover {
-        transform: scale(1.07);
-        box-shadow: 0 8px 30px rgba(0,0,0,0.28);
+        transform: scale(1.08);
+        box-shadow: 0 8px 32px rgba(0,0,0,0.28);
       }
-      #bb-launcher:active { transform: scale(0.95); }
-      #bb-launcher img {
-        width: 32px;
-        height: 32px;
+      #bb-launcher:active { transform: scale(0.94); }
+
+      #bb-launcher .bb-launch-inner {
+        width: 68px;
+        height: 68px;
         border-radius: 50%;
-        object-fit: cover;
-        pointer-events: none;
-      }
-      #bb-launcher .bb-launch-icon {
-        color: #fff;
+        background: ${PRIMARY};
         display: flex;
         align-items: center;
         justify-content: center;
-        transition: opacity 0.18s, transform 0.18s;
+        position: relative;
+        overflow: hidden;
       }
-      #bb-launcher .bb-launch-close {
+
+      #bb-launcher img.bb-launch-img {
+        width: 44px;
+        height: 44px;
+        border-radius: 50%;
+        object-fit: cover;
+        pointer-events: none;
+        transition: opacity 0.2s, transform 0.2s;
+      }
+      #bb-launcher .bb-launch-close-icon {
         position: absolute;
         color: #fff;
         display: flex;
         align-items: center;
         justify-content: center;
         opacity: 0;
-        transform: scale(0.6) rotate(-90deg);
-        transition: opacity 0.18s, transform 0.18s;
+        transform: scale(0.5) rotate(-90deg);
+        transition: opacity 0.2s, transform 0.2s;
       }
-      #bb-launcher.open .bb-launch-icon {
+      #bb-launcher.open img.bb-launch-img {
         opacity: 0;
-        transform: scale(0.6) rotate(90deg);
+        transform: scale(0.5) rotate(90deg);
       }
-      #bb-launcher.open .bb-launch-close {
+      #bb-launcher.open .bb-launch-close-icon {
         opacity: 1;
         transform: scale(1) rotate(0deg);
+      }
+
+      /* Pulse ring */
+      #bb-launcher::before {
+        content: '';
+        position: absolute;
+        inset: -4px;
+        border-radius: 50%;
+        border: 2px solid ${PRIMARY};
+        opacity: 0;
+        animation: bbPulse 3s ease-out infinite;
+      }
+      @keyframes bbPulse {
+        0%   { opacity: 0.5; transform: scale(1); }
+        100% { opacity: 0;   transform: scale(1.55); }
       }
 
       /* ── Unread Badge ── */
       #bb-badge {
         position: absolute;
-        top: -3px;
-        right: -3px;
+        top: -4px;
+        right: -4px;
         background: #ef4444;
         color: #fff;
         font-size: 10px;
         font-weight: 700;
-        font-family: -apple-system, sans-serif;
-        min-width: 18px;
-        height: 18px;
-        border-radius: 9px;
+        font-family: 'DM Sans', -apple-system, sans-serif;
+        min-width: 20px;
+        height: 20px;
+        border-radius: 10px;
         display: none;
         align-items: center;
         justify-content: center;
-        padding: 0 4px;
-        border: 2px solid #fff;
+        padding: 0 5px;
+        border: 2.5px solid #fff;
         line-height: 1;
         pointer-events: none;
+        box-shadow: 0 2px 6px rgba(239,68,68,0.4);
       }
       #bb-badge.visible { display: flex; }
 
@@ -306,31 +316,33 @@
       ══════════════════════════════════════════════ */
       #bb-window {
         position: fixed;
-        bottom: 96px;
-        right: 24px;
-        width: 380px;
-        height: 620px;
-        max-height: calc(100dvh - 112px);
+        bottom: 112px;
+        right: 28px;
+        width: 390px;
+        height: 640px;
+        max-height: calc(100dvh - 128px);
         min-height: 480px;
-        background: #fff;
-        border-radius: 16px;
+        min-width: 320px;
+        background: #ffffff;
+        border-radius: 20px;
         box-shadow:
-          0 0 0 1px rgba(0,0,0,0.06),
-          0 20px 60px rgba(0,0,0,0.16),
-          0 4px 16px rgba(0,0,0,0.08);
+          0 0 0 1px rgba(0,0,0,0.05),
+          0 24px 64px rgba(0,0,0,0.14),
+          0 8px 24px rgba(0,0,0,0.08);
         display: flex;
         flex-direction: column;
         overflow: hidden;
         z-index: 2147483647;
-        font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+        font-family: 'DM Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
         font-size: 14px;
-        line-height: 1.5;
+        line-height: 1.55;
         color: #111;
         opacity: 0;
-        transform: translateY(16px) scale(0.97);
+        transform: translateY(20px) scale(0.96);
         pointer-events: none;
-        transition: opacity 0.24s cubic-bezier(.4,0,.2,1), transform 0.24s cubic-bezier(.4,0,.2,1);
+        transition: opacity 0.28s cubic-bezier(.4,0,.2,1), transform 0.28s cubic-bezier(.4,0,.2,1);
         -webkit-font-smoothing: antialiased;
+        -moz-osx-font-smoothing: grayscale;
       }
       #bb-window.open {
         opacity: 1;
@@ -345,140 +357,182 @@
         display: flex;
         flex-direction: column;
         height: 100%;
-        transition: opacity 0.18s ease, transform 0.18s ease;
+        overflow: hidden;
       }
-      #bb-home.hidden {
-        display: none;
-      }
+      #bb-home.hidden { display: none; }
 
       /* Hero header */
       .bb-home-header {
-        background: linear-gradient(160deg, ${PRIMARY} 0%, ${PRIMARY}cc 100%);
-        padding: 20px 20px 40px;
+        background: linear-gradient(145deg, ${PRIMARY} 0%, ${PRIMARY_DARK} 100%);
+        padding: 22px 20px 36px;
         position: relative;
         flex-shrink: 0;
+        overflow: hidden;
       }
+      .bb-home-header::before {
+        content: '';
+        position: absolute;
+        top: -40px; right: -40px;
+        width: 180px; height: 180px;
+        border-radius: 50%;
+        background: rgba(255,255,255,0.06);
+        pointer-events: none;
+      }
+      .bb-home-header::after {
+        content: '';
+        position: absolute;
+        bottom: -60px; left: -20px;
+        width: 140px; height: 140px;
+        border-radius: 50%;
+        background: rgba(255,255,255,0.04);
+        pointer-events: none;
+      }
+
       .bb-home-topbar {
         display: flex;
         align-items: center;
         justify-content: space-between;
-        margin-bottom: 20px;
+        margin-bottom: 18px;
+        position: relative;
+        z-index: 1;
       }
       .bb-home-logo {
         display: flex;
         align-items: center;
-        gap: 8px;
+        gap: 9px;
+        cursor: pointer;
+        text-decoration: none;
       }
-      .bb-home-logo img {
-        width: 28px;
-        height: 28px;
-        border-radius: 6px;
-        object-fit: cover;
-        background: rgba(255,255,255,0.15);
-      }
-      .bb-home-logo-fallback {
-        width: 28px;
-        height: 28px;
-        border-radius: 6px;
-        background: rgba(255,255,255,0.25);
+      .bb-home-logo-img-wrap {
+        width: 30px; height: 30px;
+        border-radius: 8px;
+        background: rgba(255,255,255,0.18);
         display: flex;
         align-items: center;
         justify-content: center;
-        color: #fff;
-        font-size: 14px;
-        font-weight: 700;
+        overflow: hidden;
+        flex-shrink: 0;
+      }
+      .bb-home-logo-img-wrap img {
+        width: 22px; height: 22px;
+        object-fit: cover;
+        border-radius: 4px;
       }
       .bb-home-logo span {
-        color: rgba(255,255,255,0.9);
+        color: rgba(255,255,255,0.92);
         font-size: 13px;
         font-weight: 600;
+        letter-spacing: 0.1px;
       }
       .bb-home-close {
         background: rgba(255,255,255,0.15);
         border: none;
         border-radius: 50%;
-        width: 32px;
-        height: 32px;
+        width: 30px; height: 30px;
         display: flex;
         align-items: center;
         justify-content: center;
         cursor: pointer;
-        color: #fff;
-        transition: background 0.15s;
+        color: rgba(255,255,255,0.85);
+        transition: background 0.15s, color 0.15s;
         flex-shrink: 0;
       }
-      .bb-home-close:hover { background: rgba(255,255,255,0.25); }
+      .bb-home-close:hover {
+        background: rgba(255,255,255,0.25);
+        color: #fff;
+      }
 
       .bb-home-greeting {
         color: #fff;
-        font-size: 24px;
+        font-size: 22px;
         font-weight: 700;
         line-height: 1.3;
-        letter-spacing: -0.3px;
+        letter-spacing: -0.4px;
+        position: relative;
+        z-index: 1;
       }
       .bb-home-sub {
-        color: rgba(255,255,255,0.78);
-        font-size: 14px;
-        margin-top: 6px;
+        color: rgba(255,255,255,0.72);
+        font-size: 13.5px;
+        margin-top: 5px;
+        font-weight: 400;
+        position: relative;
+        z-index: 1;
+        line-height: 1.5;
       }
 
-      /* Agent avatar stack */
-      .bb-avatar-stack {
+      /* Online status row */
+      .bb-home-status {
         display: flex;
         align-items: center;
-        margin-top: 16px;
+        gap: 7px;
+        margin-top: 14px;
+        position: relative;
+        z-index: 1;
       }
-      .bb-avatar-stack-item {
-        width: 36px;
-        height: 36px;
+      .bb-status-avatars { display: flex; align-items: center; }
+      .bb-status-avatar {
+        width: 28px; height: 28px;
         border-radius: 50%;
-        border: 2.5px solid ${PRIMARY};
+        border: 2px solid ${PRIMARY};
         overflow: hidden;
-        margin-left: -10px;
+        margin-left: -7px;
         background: rgba(255,255,255,0.25);
         display: flex;
         align-items: center;
         justify-content: center;
-        font-size: 13px;
+        font-size: 10px;
         font-weight: 700;
         color: #fff;
         flex-shrink: 0;
       }
-      .bb-avatar-stack-item:first-child { margin-left: 0; }
-      .bb-avatar-stack-item img {
-        width: 100%;
-        height: 100%;
-        object-fit: cover;
-      }
-      .bb-avatar-stack-label {
-        margin-left: 10px;
-        color: rgba(255,255,255,0.85);
+      .bb-status-avatar:first-child { margin-left: 0; }
+      .bb-status-avatar img { width: 100%; height: 100%; object-fit: cover; }
+      .bb-status-text {
+        color: rgba(255,255,255,0.78);
         font-size: 12px;
         font-weight: 500;
+        display: flex;
+        align-items: center;
+        gap: 5px;
       }
       .bb-online-dot {
         display: inline-block;
-        width: 7px;
-        height: 7px;
+        width: 6px; height: 6px;
         border-radius: 50%;
         background: #4ade80;
-        margin-right: 4px;
-        vertical-align: middle;
+        animation: bbPulseGreen 2.5s ease-in-out infinite;
+        flex-shrink: 0;
+      }
+      @keyframes bbPulseGreen {
+        0%, 100% { opacity: 1; }
+        50%       { opacity: 0.5; }
       }
 
-      /* Card actions */
-      .bb-home-cards {
-        padding: 0 12px;
-        margin-top: -24px;
+      /* Scrollable home body */
+      .bb-home-body {
+        flex: 1;
+        min-height: 0;
+        overflow-y: auto;
+        scrollbar-width: thin;
+        scrollbar-color: #e0e0e0 transparent;
         display: flex;
         flex-direction: column;
-        gap: 8px;
+      }
+      .bb-home-body::-webkit-scrollbar { width: 4px; }
+      .bb-home-body::-webkit-scrollbar-track { background: transparent; }
+      .bb-home-body::-webkit-scrollbar-thumb { background: #e0e0e0; border-radius: 2px; }
+
+      /* Chat action card */
+      .bb-home-cards {
+        padding: 0 14px;
+        margin-top: -18px;
         flex-shrink: 0;
       }
       .bb-home-card {
         background: #fff;
-        border-radius: 12px;
-        box-shadow: 0 2px 12px rgba(0,0,0,0.10), 0 0 0 1px rgba(0,0,0,0.05);
+        border-radius: 14px;
+        box-shadow: 0 2px 16px rgba(0,0,0,0.09), 0 0 0 1px rgba(0,0,0,0.04);
         overflow: hidden;
       }
       .bb-home-card-btn {
@@ -486,108 +540,133 @@
         display: flex;
         align-items: center;
         justify-content: space-between;
-        padding: 14px 16px;
+        padding: 15px 16px;
         background: none;
         border: none;
         cursor: pointer;
         text-align: left;
-        font-family: inherit;
+        font-family: 'DM Sans', inherit;
         font-size: 14px;
         color: #111;
         font-weight: 600;
-        transition: background 0.12s;
-        gap: 10px;
+        transition: background 0.15s;
+        gap: 12px;
       }
-      .bb-home-card-btn:hover { background: #f8f8f8; }
+      .bb-home-card-btn:hover { background: #fafafa; }
       .bb-home-card-btn-left {
         display: flex;
         align-items: center;
-        gap: 12px;
+        gap: 13px;
         flex: 1;
         min-width: 0;
       }
       .bb-home-card-icon {
-        width: 36px;
-        height: 36px;
-        border-radius: 8px;
-        background: ${PRIMARY}15;
+        width: 38px; height: 38px;
+        border-radius: 10px;
+        background: ${PRIMARY}18;
         color: ${PRIMARY};
         display: flex;
         align-items: center;
         justify-content: center;
         flex-shrink: 0;
+        transition: background 0.15s;
       }
+      .bb-home-card-btn:hover .bb-home-card-icon { background: ${PRIMARY}28; }
       .bb-home-card-text { min-width: 0; }
       .bb-home-card-title {
-        font-size: 13px;
+        font-size: 13.5px;
         font-weight: 600;
         color: #111;
         white-space: nowrap;
         overflow: hidden;
         text-overflow: ellipsis;
+        line-height: 1.3;
       }
       .bb-home-card-desc {
         font-size: 12px;
-        color: #888;
-        margin-top: 1px;
+        color: #999;
+        margin-top: 2px;
         white-space: nowrap;
         overflow: hidden;
         text-overflow: ellipsis;
+        font-weight: 400;
       }
-      .bb-home-card-arrow { color: #bbb; flex-shrink: 0; }
+      .bb-home-card-arrow {
+        color: #ccc;
+        flex-shrink: 0;
+        transition: transform 0.15s, color 0.15s;
+      }
+      .bb-home-card-btn:hover .bb-home-card-arrow {
+        transform: translateX(2px);
+        color: #999;
+      }
 
-      /* Starters in home */
+      /* Popular questions */
       .bb-home-starters {
-        padding: 12px 12px 0;
-        display: flex;
-        flex-direction: column;
-        gap: 6px;
+        padding: 20px 14px 0;
         flex-shrink: 0;
       }
-      .bb-home-starters-label {
+      .bb-home-section-label {
         font-size: 11px;
         font-weight: 600;
-        color: #aaa;
+        color: #bbb;
         text-transform: uppercase;
-        letter-spacing: 0.6px;
-        padding: 0 4px;
-        margin-bottom: 2px;
+        letter-spacing: 0.7px;
+        margin-bottom: 10px;
+        padding: 0 2px;
       }
       .bb-starter-chip {
         display: flex;
         align-items: center;
         justify-content: space-between;
-        padding: 10px 14px;
-        background: #f8f9fa;
-        border: 1px solid #eee;
-        border-radius: 10px;
+        padding: 11px 14px;
+        background: #f9f9f9;
+        border: 1px solid #eeeeee;
+        border-radius: 11px;
         font-size: 13px;
-        font-family: inherit;
+        font-family: 'DM Sans', inherit;
         color: #333;
         font-weight: 500;
         cursor: pointer;
         text-align: left;
-        transition: background 0.12s, border-color 0.12s, transform 0.1s;
-        gap: 8px;
+        transition: background 0.15s, border-color 0.15s, transform 0.15s;
+        gap: 10px;
+        width: 100%;
+        margin-bottom: 7px;
+        line-height: 1.4;
       }
       .bb-starter-chip:hover {
-        background: #f1f1f1;
-        border-color: #ddd;
+        background: #f2f2f2;
+        border-color: #e0e0e0;
         transform: translateX(2px);
       }
-      .bb-starter-chip svg { color: #aaa; flex-shrink: 0; }
+      .bb-starter-chip-icon { color: ${PRIMARY}; flex-shrink: 0; opacity: 0.7; }
+      .bb-starter-chip-arrow { color: #ccc; flex-shrink: 0; transition: transform 0.15s; }
+      .bb-starter-chip:hover .bb-starter-chip-arrow {
+        transform: translateX(2px);
+        color: #aaa;
+      }
 
       /* Home footer */
       .bb-home-footer {
-        margin-top: auto;
-        padding: 12px;
+        padding: 16px 14px 18px;
         text-align: center;
-        font-size: 11px;
-        color: #bbb;
         flex-shrink: 0;
+        margin-top: auto;
       }
-      .bb-home-footer a { color: #bbb; text-decoration: none; }
-      .bb-home-footer a:hover { color: #888; }
+      .bb-powered {
+        display: inline-flex;
+        align-items: center;
+        gap: 5px;
+        font-size: 11.5px;
+        color: #ccc;
+        text-decoration: none;
+        font-weight: 500;
+        transition: color 0.15s;
+        cursor: pointer;
+      }
+      .bb-powered:hover { color: #999; }
+      .bb-powered-bee { font-size: 14px; }
 
       /* ══════════════════════════════════════════════
          CHAT VIEW
@@ -599,31 +678,33 @@
       }
       #bb-chat.active { display: flex; }
 
-      /* Chat header */
+      /* Chat header — white bg, black text */
       .bb-chat-header {
-        padding: 12px 14px 12px;
-        background: ${PRIMARY};
+        padding: 0 14px;
+        height: 58px;
+        background: #ffffff;
+        border-bottom: 1px solid #f0f0f0;
         display: flex;
         align-items: center;
         gap: 10px;
         flex-shrink: 0;
         user-select: none;
+        position: relative;
       }
       .bb-chat-back {
-        background: rgba(255,255,255,0.15);
+        background: #f5f5f5;
         border: none;
         border-radius: 50%;
-        width: 30px;
-        height: 30px;
+        width: 32px; height: 32px;
         display: flex;
         align-items: center;
         justify-content: center;
         cursor: pointer;
-        color: #fff;
-        transition: background 0.15s;
+        color: #555;
+        transition: background 0.15s, color 0.15s;
         flex-shrink: 0;
       }
-      .bb-chat-back:hover { background: rgba(255,255,255,0.25); }
+      .bb-chat-back:hover { background: #eaeaea; color: #222; }
       .bb-chat-header-info {
         display: flex;
         align-items: center;
@@ -632,10 +713,9 @@
         min-width: 0;
       }
       .bb-chat-avatar {
-        width: 34px;
-        height: 34px;
+        width: 34px; height: 34px;
         border-radius: 50%;
-        background: rgba(255,255,255,0.2);
+        background: #f0f0f0;
         overflow: hidden;
         display: flex;
         align-items: center;
@@ -643,34 +723,31 @@
         flex-shrink: 0;
         position: relative;
       }
-      .bb-chat-avatar img {
-        width: 34px;
-        height: 34px;
-        object-fit: cover;
-      }
+      .bb-chat-avatar img { width: 34px; height: 34px; object-fit: cover; }
       .bb-chat-avatar-badge {
         position: absolute;
-        bottom: 0;
-        right: 0;
-        width: 10px;
-        height: 10px;
+        bottom: 0; right: 0;
+        width: 9px; height: 9px;
         border-radius: 50%;
-        background: #4ade80;
-        border: 1.5px solid ${PRIMARY};
+        background: #22c55e;
+        border: 1.5px solid #fff;
       }
       .bb-chat-header-text { min-width: 0; }
       .bb-chat-header-name {
-        color: #fff;
+        color: #111;
         font-size: 14px;
-        font-weight: 600;
+        font-weight: 700;
         white-space: nowrap;
         overflow: hidden;
         text-overflow: ellipsis;
+        line-height: 1.3;
+        letter-spacing: -0.2px;
       }
       .bb-chat-header-sub {
-        color: rgba(255,255,255,0.75);
-        font-size: 11px;
+        color: #aaa;
+        font-size: 11.5px;
         margin-top: 1px;
+        font-weight: 400;
       }
       .bb-chat-header-actions {
         display: flex;
@@ -679,32 +756,35 @@
         flex-shrink: 0;
       }
       .bb-chat-hbtn {
-        background: rgba(255,255,255,0.15);
+        background: transparent;
         border: none;
-        border-radius: 50%;
-        width: 30px;
-        height: 30px;
+        border-radius: 8px;
+        width: 32px; height: 32px;
         display: flex;
         align-items: center;
         justify-content: center;
         cursor: pointer;
-        color: #fff;
-        transition: background 0.15s;
+        color: #aaa;
+        transition: background 0.15s, color 0.15s;
       }
-      .bb-chat-hbtn:hover { background: rgba(255,255,255,0.25); }
+      .bb-chat-hbtn:hover { background: #f5f5f5; color: #555; }
 
       /* Dropdown menu */
       .bb-dropdown {
         position: absolute;
-        top: 56px;
-        right: 14px;
+        top: 54px; right: 12px;
         background: #fff;
-        border-radius: 10px;
-        box-shadow: 0 4px 20px rgba(0,0,0,0.15), 0 0 0 1px rgba(0,0,0,0.06);
-        min-width: 180px;
-        z-index: 10;
+        border-radius: 12px;
+        box-shadow: 0 4px 24px rgba(0,0,0,0.12), 0 0 0 1px rgba(0,0,0,0.06);
+        min-width: 190px;
+        z-index: 20;
         overflow: hidden;
         display: none;
+        animation: bbDropIn 0.15s ease;
+      }
+      @keyframes bbDropIn {
+        from { opacity: 0; transform: translateY(-6px) scale(0.97); }
+        to   { opacity: 1; transform: translateY(0) scale(1); }
       }
       .bb-dropdown.open { display: block; }
       .bb-dropdown-item {
@@ -720,11 +800,12 @@
         background: none;
         width: 100%;
         text-align: left;
-        font-family: inherit;
+        font-family: 'DM Sans', inherit;
+        font-weight: 500;
       }
-      .bb-dropdown-item:hover { background: #f5f5f5; }
+      .bb-dropdown-item:hover { background: #f7f7f7; }
       .bb-dropdown-item.danger { color: #ef4444; }
-      .bb-dropdown-divider { height: 1px; background: #f0f0f0; }
+      .bb-dropdown-divider { height: 1px; background: #f3f3f3; margin: 2px 0; }
 
       /* Date separator */
       .bb-date-sep {
@@ -745,114 +826,104 @@
         background: #e8e8e8;
       }
 
-      /* Messages area */
+      /* Messages — white bg */
       .bb-messages {
         flex: 1;
-        padding: 12px 14px 8px;
+        padding: 16px 14px 10px;
         overflow-y: auto;
-        background: #f5f6f7;
+        background: #ffffff;
         display: flex;
         flex-direction: column;
-        gap: 2px;
+        gap: 0;
         scrollbar-width: thin;
-        scrollbar-color: #d0d0d0 transparent;
+        scrollbar-color: #e8e8e8 transparent;
       }
       .bb-messages::-webkit-scrollbar { width: 4px; }
       .bb-messages::-webkit-scrollbar-track { background: transparent; }
-      .bb-messages::-webkit-scrollbar-thumb { background: #d0d0d0; border-radius: 2px; }
+      .bb-messages::-webkit-scrollbar-thumb { background: #e8e8e8; border-radius: 2px; }
 
       /* Message rows */
       .bb-row {
         display: flex;
         flex-direction: column;
-        max-width: 84%;
-        gap: 2px;
+        max-width: 82%;
+        gap: 3px;
       }
-      .bb-row.bot  { align-self: flex-start; }
-      .bb-row.user { align-self: flex-end; }
+      .bb-row.bot   { align-self: flex-start; }
+      .bb-row.user  { align-self: flex-end; }
       .bb-row.error { align-self: flex-start; }
-      .bb-row + .bb-row { margin-top: 10px; }
-      .bb-row.bot  + .bb-row.bot  { margin-top: 4px; }
-      .bb-row.user + .bb-row.user { margin-top: 4px; }
+      .bb-row + .bb-row { margin-top: 12px; }
+      .bb-row.bot  + .bb-row.bot  { margin-top: 5px; }
+      .bb-row.user + .bb-row.user { margin-top: 5px; }
 
       /* Sender label */
       .bb-sender {
         font-size: 11px;
-        color: #999;
+        color: #bbb;
         font-weight: 500;
         display: flex;
         align-items: center;
-        gap: 4px;
-        margin-bottom: 2px;
-        padding: 0 2px;
+        gap: 5px;
+        margin-bottom: 3px;
+        padding: 0 3px;
+        letter-spacing: 0.1px;
       }
-      .bb-sender svg { opacity: 0.6; }
-      .bb-row.user .bb-sender { flex-direction: row-reverse; }
+      .bb-row.user .bb-sender { flex-direction: row-reverse; color: #ccc; }
 
       /* Bubbles */
       .bb-bubble {
-        padding: 10px 14px;
-        font-size: 14px;
-        line-height: 1.55;
+        padding: 10px 13px;
+        font-size: 13.5px;
+        line-height: 1.6;
         word-break: break-word;
         position: relative;
-        animation: bbSlideIn 0.2s cubic-bezier(.4,0,.2,1) both;
+        animation: bbFadeUp 0.22s cubic-bezier(.4,0,.2,1) both;
+      }
+      @keyframes bbFadeUp {
+        from { opacity: 0; transform: translateY(8px); }
+        to   { opacity: 1; transform: translateY(0); }
       }
       .bb-row.bot .bb-bubble {
-        background: #fff;
+        background: #f5f6f8;
         color: #111;
-        border-radius: 4px 14px 14px 14px;
-        border: 1px solid rgba(0,0,0,0.07);
-        box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+        border-radius: 5px 16px 16px 16px;
+        border: 1px solid #eeeeee;
       }
       .bb-row.user .bb-bubble {
-        background: ${PRIMARY};
+        background: #111111;
         color: #fff;
-        border-radius: 14px 14px 4px 14px;
+        border-radius: 16px 16px 5px 16px;
       }
       .bb-row.error .bb-bubble {
         background: #fff5f5;
         border: 1px solid #fecaca;
         color: #b91c1c;
-        border-radius: 4px 14px 14px 14px;
+        border-radius: 5px 16px 16px 16px;
         font-size: 13px;
       }
 
-      /* Markdown inside bot bubble */
-      .bb-bubble .bb-md-p {
-        margin: 0 0 8px;
-      }
+      /* Markdown */
+      .bb-bubble .bb-md-p { margin: 0 0 8px; }
       .bb-bubble .bb-md-p:last-child { margin-bottom: 0; }
-      .bb-bubble .bb-md-h1 { font-size: 16px; font-weight: 700; margin: 0 0 8px; }
-      .bb-bubble .bb-md-h2 { font-size: 15px; font-weight: 700; margin: 0 0 6px; }
-      .bb-bubble .bb-md-h3 { font-size: 14px; font-weight: 600; margin: 0 0 4px; color: #333; }
+      .bb-bubble .bb-md-h1 { font-size: 15px; font-weight: 700; margin: 0 0 8px; }
+      .bb-bubble .bb-md-h2 { font-size: 14px; font-weight: 700; margin: 0 0 6px; }
+      .bb-bubble .bb-md-h3 { font-size: 13.5px; font-weight: 600; margin: 0 0 4px; color: #444; }
       .bb-bubble .bb-md-ul,
-      .bb-bubble .bb-md-ol {
-        margin: 6px 0 8px 16px;
-        display: flex;
-        flex-direction: column;
-        gap: 3px;
-      }
+      .bb-bubble .bb-md-ol { margin: 6px 0 8px 16px; display: flex; flex-direction: column; gap: 3px; }
       .bb-bubble .bb-md-ul { list-style: disc; }
       .bb-bubble .bb-md-ol { list-style: decimal; }
       .bb-bubble .bb-md-ul li,
-      .bb-bubble .bb-md-ol li { font-size: 13.5px; line-height: 1.5; }
-      .bb-bubble .bb-md-ul li strong,
-      .bb-bubble .bb-md-ol li strong { font-weight: 700; }
+      .bb-bubble .bb-md-ol li { font-size: 13px; line-height: 1.55; }
       .bb-bubble .bb-md-quote {
-        border-left: 3px solid #d0d0d0;
+        border-left: 3px solid #ddd;
         padding: 4px 10px;
-        color: #666;
+        color: #777;
         font-style: italic;
         margin: 6px 0;
         font-size: 13px;
       }
-      .bb-bubble .bb-md-hr { border: none; border-top: 1px solid #e0e0e0; margin: 10px 0; }
-      .bb-bubble .bb-md-link {
-        color: ${PRIMARY};
-        text-decoration: underline;
-        text-underline-offset: 2px;
-      }
+      .bb-bubble .bb-md-hr { border: none; border-top: 1px solid #e8e8e8; margin: 10px 0; }
+      .bb-bubble .bb-md-link { color: #2563eb; text-decoration: underline; text-underline-offset: 2px; }
       .bb-bubble .bb-inline-code {
         background: #f0f0f0;
         color: #c0392b;
@@ -862,106 +933,92 @@
         font-size: 12px;
       }
       .bb-bubble .bb-code-block {
-        background: #1e1e2e;
-        color: #cdd6f4;
+        background: #1a1a2e;
+        color: #e2e8f0;
         padding: 10px 12px;
         border-radius: 8px;
         overflow-x: auto;
         font-family: 'SFMono-Regular', Consolas, monospace;
-        font-size: 12px;
+        font-size: 11.5px;
         line-height: 1.6;
         margin: 6px 0;
         white-space: pre;
       }
       .bb-bubble strong { font-weight: 700; }
-      .bb-bubble em { font-style: italic; }
-      .bb-bubble del { text-decoration: line-through; opacity: 0.7; }
+      .bb-bubble em     { font-style: italic; }
+      .bb-bubble del    { text-decoration: line-through; opacity: 0.65; }
 
       /* Resolution prompt */
       .bb-resolve-prompt {
-        margin: 6px 0 4px 0;
-        padding: 10px 14px;
-        background: #FFFBEB;
-        border: 1px solid #FCD34D;
-        border-radius: 12px;
+        margin: 8px 0 4px;
+        padding: 12px 14px;
+        background: #f9fafb;
+        border: 1px solid #e5e7eb;
+        border-radius: 14px;
         display: flex;
         flex-direction: column;
-        gap: 8px;
-        animation: bbSlideIn 0.3s ease both;
+        gap: 10px;
+        animation: bbFadeUp 0.3s ease both;
       }
       .bb-resolve-prompt p {
-        font-size: 12.5px;
-        color: #78350F;
+        font-size: 13px;
+        color: #374151;
         font-weight: 500;
         margin: 0;
-        line-height: 1.4;
+        line-height: 1.45;
       }
-      .bb-resolve-btns {
-        display: flex;
-        gap: 6px;
-      }
+      .bb-resolve-btns { display: flex; gap: 7px; }
       .bb-resolve-yes, .bb-resolve-no {
         flex: 1;
-        padding: 6px 10px;
-        border-radius: 8px;
-        font-size: 12px;
+        padding: 8px 10px;
+        border-radius: 9px;
+        font-size: 12.5px;
         font-weight: 600;
         cursor: pointer;
         border: none;
         outline: none;
-        transition: opacity 0.2s;
-        min-height: 32px;
+        transition: opacity 0.18s, transform 0.12s;
+        min-height: 34px;
+        font-family: 'DM Sans', inherit;
       }
-      .bb-resolve-yes:hover, .bb-resolve-no:hover { opacity: 0.85; }
-      .bb-resolve-yes {
-        background: #FFC107;
-        color: #000;
-      }
-      .bb-resolve-no {
-        background: #F3F4F6;
-        color: #374151;
-      }
+      .bb-resolve-yes:hover, .bb-resolve-no:hover { opacity: 0.82; }
+      .bb-resolve-yes:active, .bb-resolve-no:active { transform: scale(0.97); }
+      .bb-resolve-yes { background: #111; color: #fff; }
+      .bb-resolve-no  { background: #f0f0f0; color: #444; }
       .bb-resolve-done {
-        font-size: 12px;
-        color: #6B7280;
-        font-style: italic;
+        font-size: 12.5px;
+        color: #6b7280;
         text-align: center;
         padding: 4px 0;
+        font-style: italic;
       }
 
       /* Timestamp */
       .bb-ts {
         font-size: 10.5px;
-        color: #bbb;
-        padding: 0 2px;
+        color: #ccc;
+        padding: 0 3px;
         display: flex;
         align-items: center;
         gap: 4px;
       }
-      .bb-row.user .bb-ts { justify-content: flex-end; }
-      .bb-tick { color: #93c5fd; font-size: 12px; }
-
-      @keyframes bbSlideIn {
-        from { opacity: 0; transform: translateY(6px); }
-        to   { opacity: 1; transform: translateY(0); }
-      }
+      .bb-row.user .bb-ts { justify-content: flex-end; color: #bbb; }
+      .bb-tick { color: #6ee7b7; font-size: 11px; }
 
       /* Typing indicator */
       .bb-typing {
         align-self: flex-start;
-        background: #fff;
-        border: 1px solid rgba(0,0,0,0.07);
+        background: #f5f6f8;
+        border: 1px solid #eeeeee;
         padding: 11px 15px;
-        border-radius: 4px 14px 14px 14px;
+        border-radius: 5px 16px 16px 16px;
         display: none;
         gap: 5px;
-        box-shadow: 0 1px 3px rgba(0,0,0,0.05);
-        margin-top: 4px;
+        margin-top: 5px;
       }
       .bb-typing.active { display: flex; }
       .bb-dot {
-        width: 7px;
-        height: 7px;
+        width: 7px; height: 7px;
         background: #ccc;
         border-radius: 50%;
         animation: bbBounce 1.3s infinite ease-in-out both;
@@ -969,205 +1026,69 @@
       .bb-dot:nth-child(2) { animation-delay: 0.16s; }
       .bb-dot:nth-child(3) { animation-delay: 0.32s; }
       @keyframes bbBounce {
-        0%, 60%, 100% { transform: translateY(0); opacity: 0.5; }
+        0%, 60%, 100% { transform: translateY(0); opacity: 0.45; }
         30%            { transform: translateY(-5px); opacity: 1; }
       }
 
-      /* Conversation starters in chat */
+      /* Chat starters */
       #bb-chat-starters {
-        padding: 8px 14px 6px;
-        background: #f5f6f7;
+        padding: 6px 14px 8px;
+        background: #fff;
         display: flex;
-        flex-direction: column;
+        flex-wrap: wrap;
         gap: 6px;
+        border-top: 1px solid #f3f3f3;
       }
       #bb-chat-starters.hidden { display: none; }
       .bb-chat-starter-chip {
-        display: flex;
+        display: inline-flex;
         align-items: center;
-        justify-content: space-between;
-        padding: 9px 13px;
-        background: #fff;
-        border: 1px solid #e4e4e4;
+        gap: 6px;
+        padding: 7px 13px;
+        background: #f5f5f5;
+        border: 1px solid #ebebeb;
         border-radius: 20px;
-        font-size: 13px;
-        font-family: inherit;
-        color: ${PRIMARY};
+        font-size: 12.5px;
+        font-family: 'DM Sans', inherit;
+        color: #444;
         font-weight: 500;
         cursor: pointer;
-        text-align: left;
-        transition: background 0.12s, border-color 0.12s;
-        gap: 8px;
+        transition: background 0.14s, border-color 0.14s;
+        line-height: 1.3;
       }
-      .bb-chat-starter-chip:hover {
-        background: ${PRIMARY}0a;
-        border-color: ${PRIMARY}55;
-      }
-      .bb-chat-starter-chip svg { color: ${PRIMARY}; flex-shrink: 0; opacity: 0.7; }
+      .bb-chat-starter-chip:hover { background: #eeeeee; border-color: #e0e0e0; }
 
-      /* Input area */
-      .bb-input-area {
-        padding: 10px 12px 12px;
-        background: #fff;
-        border-top: 1px solid #eeeeee;
-        flex-shrink: 0;
-      }
-      .bb-input-wrap {
-        display: flex;
-        align-items: flex-end;
-        gap: 8px;
-        background: #f5f6f7;
-        border: 1.5px solid #e0e0e0;
-        border-radius: 12px;
-        padding: 6px 6px 6px 12px;
-        transition: border-color 0.2s;
-      }
-      .bb-input-wrap:focus-within {
-        border-color: ${PRIMARY};
-        background: #fff;
-      }
-      .bb-input {
-        flex: 1;
-        border: none;
-        outline: none;
-        font-size: 14px;
-        font-family: inherit;
-        background: transparent;
-        color: #111;
-        resize: none;
-        min-height: 22px;
-        max-height: 100px;
-        line-height: 1.5;
-        overflow-y: auto;
-        padding: 2px 0;
-        scrollbar-width: none;
-      }
-      .bb-input::-webkit-scrollbar { display: none; }
-      .bb-input::placeholder { color: #aaa; }
-      .bb-input:disabled { opacity: 0.5; cursor: not-allowed; }
-      .bb-input-actions {
-        display: flex;
-        align-items: center;
-        gap: 2px;
-        flex-shrink: 0;
-      }
-      .bb-input-icon-btn {
-        width: 30px;
-        height: 30px;
-        border: none;
-        background: none;
-        cursor: pointer;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        color: #aaa;
-        border-radius: 6px;
-        transition: color 0.15s, background 0.15s;
-        flex-shrink: 0;
-      }
-      .bb-input-icon-btn:hover { color: #666; background: #f0f0f0; }
-      .bb-send {
-        width: 34px;
-        height: 34px;
-        border-radius: 8px;
-        background: ${PRIMARY};
-        border: none;
-        cursor: pointer;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        color: #fff;
-        transition: opacity 0.15s, transform 0.1s;
-        flex-shrink: 0;
-      }
-      .bb-send:hover { opacity: 0.88; }
-      .bb-send:active { transform: scale(0.93); }
-      .bb-send:disabled { opacity: 0.35; cursor: not-allowed; }
-      .bb-input-footer {
-        text-align: center;
-        font-size: 11px;
-        color: #ccc;
-        margin-top: 8px;
-      }
-      .bb-input-footer a { color: #ccc; text-decoration: none; }
-      .bb-input-footer a:hover { color: #999; }
-
-      /* ══════════════════════════════════════════════
-         BOTTOM NAV (Home / Messages tabs)
-      ══════════════════════════════════════════════ */
-      .bb-bottom-nav {
-        display: flex;
-        border-top: 1px solid #eeeeee;
-        background: #fff;
-        flex-shrink: 0;
-      }
-      .bb-nav-btn {
-        flex: 1;
-        display: flex;
-        flex-direction: column;
-        align-items: center;
-        justify-content: center;
-        gap: 3px;
-        padding: 10px 0 12px;
-        border: none;
-        background: none;
-        cursor: pointer;
-        font-size: 11px;
-        font-family: inherit;
-        color: #bbb;
-        font-weight: 500;
-        transition: color 0.15s;
-        position: relative;
-      }
-      .bb-nav-btn:hover { color: #666; }
-      .bb-nav-btn.active { color: ${PRIMARY}; }
-      .bb-nav-btn::before {
-        content: '';
-        position: absolute;
-        top: 0;
-        left: 50%;
-        transform: translateX(-50%);
-        width: 32px;
-        height: 2px;
-        border-radius: 0 0 2px 2px;
-        background: ${PRIMARY};
-        opacity: 0;
-        transition: opacity 0.15s;
-      }
-      .bb-nav-btn.active::before { opacity: 1; }
-
-      /* ══════════════════════════════════════════════
-         HUMAN HANDOFF BANNER
-      ══════════════════════════════════════════════ */
+      /* Human handoff banner */
       #bb-handoff-banner {
-        margin: 0 14px 8px;
-        padding: 10px 14px;
-        background: linear-gradient(135deg, #f0fdf4, #dcfce7);
+        margin: 0 14px 10px;
+        padding: 11px 14px;
+        background: #f0fdf4;
         border: 1px solid #bbf7d0;
-        border-radius: 10px;
+        border-radius: 12px;
         display: none;
         align-items: center;
         justify-content: space-between;
         gap: 10px;
         font-size: 13px;
         color: #166534;
+        animation: bbFadeUp 0.25s ease both;
       }
       #bb-handoff-banner.visible { display: flex; }
       #bb-handoff-banner-text {
         display: flex;
         align-items: center;
-        gap: 6px;
+        gap: 7px;
         font-weight: 500;
       }
       #bb-handoff-banner-btn {
         background: #166534;
         color: #fff;
         border: none;
-        padding: 5px 12px;
-        border-radius: 6px;
+        padding: 6px 13px;
+        border-radius: 8px;
         cursor: pointer;
         font-size: 12px;
-        font-family: inherit;
+        font-family: 'DM Sans', inherit;
         font-weight: 600;
         white-space: nowrap;
         flex-shrink: 0;
@@ -1175,9 +1096,73 @@
       }
       #bb-handoff-banner-btn:hover { background: #14532d; }
 
-      /* ══════════════════════════════════════════════
-         MOBILE RESPONSIVE
-      ══════════════════════════════════════════════ */
+      /* Input area */
+      .bb-input-area {
+        padding: 10px 12px 12px;
+        background: #ffffff;
+        border-top: 1px solid #f0f0f0;
+        flex-shrink: 0;
+      }
+      .bb-input-wrap {
+        display: flex;
+        align-items: flex-end;
+        gap: 8px;
+        background: #f8f8f8;
+        border: 1.5px solid #e8e8e8;
+        border-radius: 14px;
+        padding: 8px 8px 8px 14px;
+        transition: border-color 0.2s, background 0.2s;
+      }
+      .bb-input-wrap:focus-within {
+        border-color: #d0d0d0;
+        background: #fff;
+        box-shadow: 0 0 0 3px rgba(0,0,0,0.04);
+      }
+      .bb-input {
+        flex: 1;
+        border: none;
+        outline: none;
+        font-size: 13.5px;
+        font-family: 'DM Sans', inherit;
+        background: transparent;
+        color: #111;
+        resize: none;
+        min-height: 22px;
+        max-height: 100px;
+        line-height: 1.55;
+        overflow-y: auto;
+        padding: 2px 0;
+        scrollbar-width: none;
+        font-weight: 400;
+      }
+      .bb-input::-webkit-scrollbar { display: none; }
+      .bb-input::placeholder { color: #bbb; font-weight: 400; }
+      .bb-input:disabled { opacity: 0.45; cursor: not-allowed; }
+      .bb-input-actions {
+        display: flex;
+        align-items: center;
+        gap: 3px;
+        flex-shrink: 0;
+      }
+      .bb-send {
+        width: 34px; height: 34px;
+        border-radius: 10px;
+        background: #111;
+        border: none;
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: #fff;
+        transition: opacity 0.15s, transform 0.12s;
+        flex-shrink: 0;
+      }
+      .bb-send:hover { opacity: 0.80; }
+      .bb-send:active { transform: scale(0.92); }
+      .bb-send:disabled { opacity: 0.25; cursor: not-allowed; }
+      .bb-input-footer { text-align: center; font-size: 11px; margin-top: 9px; }
+
+      /* Mobile responsive */
       @media (max-width: 480px) {
         #bb-window {
           bottom: 0 !important;
@@ -1188,25 +1173,20 @@
           max-height: 100dvh !important;
           border-radius: 0 !important;
         }
-        #bb-launcher {
-          bottom: 16px;
-          right: 16px;
-        }
+        #bb-launcher { bottom: 20px; right: 20px; }
         .bb-home-greeting { font-size: 20px; }
       }
-
-      /* Scrollbar for messages */
-      .bb-messages { scrollbar-gutter: stable; }
     `;
 
     /* ── HTML TEMPLATE ── */
     const HTML = `
       <!-- ── Launcher ── -->
       <button id="bb-launcher" aria-label="Open ${BOT_NAME} chat" title="Chat with us">
-        <span class="bb-launch-icon">
-          <img src="${BEE_LOGO_URL}" alt="${BOT_NAME}" onerror="this.style.display='none'">
-        </span>
-        <span class="bb-launch-close">${IC.close}</span>
+        <div class="bb-launch-inner">
+          <img class="bb-launch-img" src="${BEE_LOGO_URL}" alt="${BOT_NAME}"
+               onerror="this.style.display='none';this.nextElementSibling.style.display='flex'">
+          <span class="bb-launch-close-icon" style="display:none">${IC.close}</span>
+        </div>
         <span id="bb-badge"></span>
       </button>
 
@@ -1219,62 +1199,79 @@
           <!-- Hero header -->
           <div class="bb-home-header">
             <div class="bb-home-topbar">
-              <div class="bb-home-logo">
-                <img src="${BEE_LOGO_URL}" alt="${BOT_NAME}" onerror="this.parentNode.innerHTML='<div class=\\'bb-home-logo-fallback\\'>B</div>'">
+              <a class="bb-home-logo" href="https://beebot.ai" target="_blank" rel="noopener" title="Visit BeeBot">
+                <div class="bb-home-logo-img-wrap">
+                  <img src="${BEE_LOGO_URL}" alt="${BOT_NAME}"
+                       onerror="this.parentNode.innerHTML='<span style=\\'color:#fff;font-weight:700;font-size:14px\\'>B</span>'">
+                </div>
                 <span>${BOT_NAME}</span>
-              </div>
+              </a>
               <button class="bb-home-close" id="bb-home-close" aria-label="Close">${IC.close}</button>
             </div>
             <div class="bb-home-greeting">${WELCOME.replace(/\n/g, '<br>')}</div>
             <div class="bb-home-sub">${TAGLINE}</div>
-            <div class="bb-avatar-stack">
-              <div class="bb-avatar-stack-item">
-                <img src="${BEE_LOGO_URL}" alt="AI" onerror="this.parentNode.textContent='AI'">
-              </div>
-              <div class="bb-avatar-stack-item" style="font-size:11px">24/7</div>
-              <span class="bb-avatar-stack-label"><span class="bb-online-dot"></span>Typically replies instantly</span>
-            </div>
-          </div>
-
-          <!-- Cards -->
-          <div class="bb-home-cards">
-            <div class="bb-home-card">
-              <button class="bb-home-card-btn" id="bb-home-start-chat" type="button" aria-label="Start a conversation">
-                <div class="bb-home-card-btn-left">
-                  <div class="bb-home-card-icon">${IC.chat}</div>
-                  <div class="bb-home-card-text">
-                    <div class="bb-home-card-title">Send us a message</div>
-                    <div class="bb-home-card-desc">Chat with our AI Support Agent</div>
-                  </div>
+            <div class="bb-home-status">
+              <div class="bb-status-avatars">
+                <div class="bb-status-avatar">
+                  <img src="${BEE_LOGO_URL}" alt="${BOT_NAME}" onerror="this.parentNode.textContent='🐝'">
                 </div>
-                <div class="bb-home-card-arrow">${IC.chevronRight}</div>
-              </button>
+              </div>
+              <span class="bb-status-text">
+                <span class="bb-online-dot"></span>
+                Typically replies instantly
+              </span>
             </div>
           </div>
 
-          <!-- Conversation starters -->
-          ${STARTERS.length > 0 ? `
-          <div class="bb-home-starters" id="bb-home-starters">
-            <div class="bb-home-starters-label">Popular questions</div>
-            ${STARTERS.map(s => `
-              <button class="bb-starter-chip" data-starter="${s.replace(/"/g, '&quot;')}" type="button">
-                <span>${s}</span>
-                ${IC.chevronRight}
-              </button>
-            `).join('')}
-          </div>
-          ` : ''}
+          <!-- Scrollable body -->
+          <div class="bb-home-body">
 
-          <div class="bb-home-footer">
-            Powered by <a href="https://beebot.ai" target="_blank" rel="noopener">BeeBot AI</a>
-          </div>
+            <!-- Chat card -->
+            <div class="bb-home-cards">
+              <div class="bb-home-card">
+                <button class="bb-home-card-btn" id="bb-home-start-chat" type="button" aria-label="Start a conversation">
+                  <div class="bb-home-card-btn-left">
+                    <div class="bb-home-card-icon">${IC.chat}</div>
+                    <div class="bb-home-card-text">
+                      <div class="bb-home-card-title">Send us a message</div>
+                      <div class="bb-home-card-desc">Chat with our AI Support Agent</div>
+                    </div>
+                  </div>
+                  <div class="bb-home-card-arrow">${IC.chevronRight}</div>
+                </button>
+              </div>
+            </div>
+
+            <!-- Popular questions -->
+            ${STARTERS.length > 0 ? `
+            <div class="bb-home-starters" id="bb-home-starters">
+              <div class="bb-home-section-label">Popular questions</div>
+              ${STARTERS.map(s => `
+                <button class="bb-starter-chip" data-starter="${s.replace(/"/g, '&quot;')}" type="button">
+                  <span class="bb-starter-chip-icon">${IC.sparkle}</span>
+                  <span style="flex:1">${s}</span>
+                  <span class="bb-starter-chip-arrow">${IC.chevronRight}</span>
+                </button>
+              `).join('')}
+            </div>
+            ` : ''}
+
+            <!-- Footer -->
+            <div class="bb-home-footer">
+              <a class="bb-powered" href="https://beebot.ai" target="_blank" rel="noopener">
+                <span class="bb-powered-bee">🐝</span>
+                <span>Powered by BeeBot AI</span>
+              </a>
+            </div>
+
+          </div><!-- /.bb-home-body -->
         </div>
 
         <!-- ══ CHAT VIEW ══ -->
         <div id="bb-chat">
 
           <!-- Header -->
-          <div class="bb-chat-header" style="position:relative;">
+          <div class="bb-chat-header">
             <button class="bb-chat-back" id="bb-chat-back" aria-label="Back to home">${IC.back}</button>
             <div class="bb-chat-header-info">
               <div class="bb-chat-avatar">
@@ -1283,7 +1280,7 @@
               </div>
               <div class="bb-chat-header-text">
                 <div class="bb-chat-header-name">${BOT_NAME}</div>
-                <div class="bb-chat-header-sub">AI Agent · The team can also help</div>
+                <div class="bb-chat-header-sub">AI Agent · Typically replies instantly</div>
               </div>
             </div>
             <div class="bb-chat-header-actions">
@@ -1292,9 +1289,9 @@
             </div>
             <!-- Dropdown -->
             <div class="bb-dropdown" id="bb-dropdown">
-              <button class="bb-dropdown-item" id="bb-new-chat-btn" type="button">${IC.newChat} &nbsp;New conversation</button>
+              <button class="bb-dropdown-item" id="bb-new-chat-btn" type="button">${IC.newChat}&nbsp; New conversation</button>
               <div class="bb-dropdown-divider"></div>
-              <button class="bb-dropdown-item" id="bb-close-chat-btn" type="button">${IC.close} &nbsp;Close chat</button>
+              <button class="bb-dropdown-item danger" id="bb-close-chat-btn" type="button">${IC.close}&nbsp; Close chat</button>
             </div>
           </div>
 
@@ -1312,14 +1309,13 @@
             ${STARTERS.map(s => `
               <button class="bb-chat-starter-chip" data-starter="${s.replace(/"/g, '&quot;')}" type="button">
                 <span>${s}</span>
-                ${IC.chevronRight}
               </button>
             `).join('')}
           </div>
 
           <!-- Human handoff banner -->
           <div id="bb-handoff-banner">
-            <div id="bb-handoff-banner-text">${IC.agent}&nbsp;Connect with a human agent</div>
+            <div id="bb-handoff-banner-text">${IC.agent}&nbsp; Connect with a human agent</div>
             <button id="bb-handoff-banner-btn" type="button">Talk to a human</button>
           </div>
 
@@ -1335,12 +1331,14 @@
                 aria-label="Type your message"
               ></textarea>
               <div class="bb-input-actions">
-                <button class="bb-input-icon-btn" id="bb-emoji-btn" type="button" aria-label="Emoji" title="Emoji">${IC.emoji}</button>
                 <button class="bb-send" id="bb-send" type="button" aria-label="Send message">${IC.send}</button>
               </div>
             </div>
             <div class="bb-input-footer">
-              Powered by <a href="https://beebot.ai" target="_blank" rel="noopener">BeeBot AI</a>
+              <a class="bb-powered" href="https://beebot.ai" target="_blank" rel="noopener">
+                <span class="bb-powered-bee">🐝</span>
+                <span>Powered by BeeBot AI</span>
+              </a>
             </div>
           </div>
         </div>
@@ -1354,6 +1352,13 @@
     document.body.appendChild(host);
 
     const shadow = host.attachShadow({ mode: 'open' });
+
+    // Google Fonts inside shadow DOM
+    const fontLink = document.createElement('link');
+    fontLink.rel = 'stylesheet';
+    fontLink.href = 'https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700;1,9..40,400&display=swap';
+    shadow.appendChild(fontLink);
+
     const styleEl = document.createElement('style');
     styleEl.textContent = CSS;
     shadow.appendChild(styleEl);
@@ -1363,31 +1368,31 @@
     shadow.appendChild(wrapper);
 
     /* ── Element refs ── */
-    const launcher       = shadow.getElementById('bb-launcher');
-    const window_        = shadow.getElementById('bb-window');
-    const badge          = shadow.getElementById('bb-badge');
-    const homeView       = shadow.getElementById('bb-home');
-    const chatView       = shadow.getElementById('bb-chat');
-    const homeClose      = shadow.getElementById('bb-home-close');
-    const homeStartChat  = shadow.getElementById('bb-home-start-chat');
-    const chatBack       = shadow.getElementById('bb-chat-back');
-    const messagesEl     = shadow.getElementById('bb-messages');
-    const typingEl       = shadow.getElementById('bb-typing');
-    const chatStartersEl = shadow.getElementById('bb-chat-starters');
-    const handoffBanner  = shadow.getElementById('bb-handoff-banner');
+    const launcher         = shadow.getElementById('bb-launcher');
+    const window_          = shadow.getElementById('bb-window');
+    const badge            = shadow.getElementById('bb-badge');
+    const homeView         = shadow.getElementById('bb-home');
+    const chatView         = shadow.getElementById('bb-chat');
+    const homeClose        = shadow.getElementById('bb-home-close');
+    const homeStartChat    = shadow.getElementById('bb-home-start-chat');
+    const chatBack         = shadow.getElementById('bb-chat-back');
+    const messagesEl       = shadow.getElementById('bb-messages');
+    const typingEl         = shadow.getElementById('bb-typing');
+    const chatStartersEl   = shadow.getElementById('bb-chat-starters');
+    const handoffBanner    = shadow.getElementById('bb-handoff-banner');
     const handoffBannerBtn = shadow.getElementById('bb-handoff-banner-btn');
-    const inputEl        = shadow.getElementById('bb-input');
-    const sendBtn        = shadow.getElementById('bb-send');
-    const talkHumanBtn   = shadow.getElementById('bb-talk-human-btn');
-    const moreBtn        = shadow.getElementById('bb-more-btn');
-    const dropdown       = shadow.getElementById('bb-dropdown');
-    const newChatBtn     = shadow.getElementById('bb-new-chat-btn');
-    const closeChatBtn   = shadow.getElementById('bb-close-chat-btn');
+    const inputEl          = shadow.getElementById('bb-input');
+    const sendBtn          = shadow.getElementById('bb-send');
+    const talkHumanBtn     = shadow.getElementById('bb-talk-human-btn');
+    const moreBtn          = shadow.getElementById('bb-more-btn');
+    const dropdown         = shadow.getElementById('bb-dropdown');
+    const newChatBtn       = shadow.getElementById('bb-new-chat-btn');
+    const closeChatBtn     = shadow.getElementById('bb-close-chat-btn');
 
-    /* ─── STATE ─── */
-    let msgCount      = 0;
-    let handoffShown  = false;
-    let dropdownOpen  = false;
+    /* ── STATE ── */
+    let msgCount     = 0;
+    let handoffShown = false;
+    let dropdownOpen = false;
 
     /* ─────────────────────────────────────────────
        OPEN / CLOSE WIDGET
@@ -1528,6 +1533,9 @@
     /* ─────────────────────────────────────────────
        MESSAGE RENDERING
     ───────────────────────────────────────────── */
+    const escapeHtml = (str) => String(str)
+      .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+
     const addMessage = (text, role, ts, isWelcome = false) => {
       const row = document.createElement('div');
       row.className = `bb-row ${role}`;
@@ -1536,9 +1544,9 @@
         const sender = document.createElement('div');
         sender.className = 'bb-sender';
         if (role === 'bot') {
-          sender.innerHTML = `${IC.bot} ${BOT_NAME} · AI Agent`;
+          sender.innerHTML = `${IC.bot}&nbsp;${BOT_NAME}`;
         } else if (role === 'user') {
-          sender.innerHTML = `You`;
+          sender.textContent = 'You';
         }
         row.appendChild(sender);
       }
@@ -1548,28 +1556,25 @@
       if (role === 'bot' || role === 'error') {
         bubble.innerHTML = renderMarkdown(text);
       } else {
-        // User messages: escape and show plain text preserving newlines
-        bubble.innerHTML = text
-          .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
-          .replace(/\n/g, '<br>');
+        bubble.innerHTML = escapeHtml(text).replace(/\n/g, '<br>');
       }
       row.appendChild(bubble);
 
       if (!isWelcome) {
-        const ts_ = document.createElement('div');
-        ts_.className = 'bb-ts';
+        const tsDiv = document.createElement('div');
+        tsDiv.className = 'bb-ts';
         const timeSpan = document.createElement('span');
         timeSpan.textContent = formatTime(ts);
         timeSpan.dataset.ts = ts;
-        ts_.appendChild(timeSpan);
+        tsDiv.appendChild(timeSpan);
         if (role === 'user') {
           const tick = document.createElement('span');
           tick.className = 'bb-tick';
-          tick.innerHTML = '&#10003;&#10003;';
+          tick.innerHTML = '✓✓';
           tick.title = 'Delivered';
-          ts_.appendChild(tick);
+          tsDiv.appendChild(tick);
         }
-        row.appendChild(ts_);
+        row.appendChild(tsDiv);
       }
 
       messagesEl.insertBefore(row, typingEl);
@@ -1601,11 +1606,11 @@
     const persistSession = () => {
       const msgs = [];
       messagesEl.querySelectorAll('.bb-row').forEach((row) => {
-        const bubble  = row.querySelector('.bb-bubble');
-        const tsMeta  = row.querySelector('.bb-ts span[data-ts]');
+        const bubble = row.querySelector('.bb-bubble');
+        const tsMeta = row.querySelector('.bb-ts span[data-ts]');
         if (!bubble || !tsMeta) return;
-        const role    = row.classList.contains('user') ? 'user' : row.classList.contains('error') ? 'error' : 'bot';
-        // Store raw text content for simple persistence
+        const role = row.classList.contains('user') ? 'user'
+          : row.classList.contains('error') ? 'error' : 'bot';
         msgs.push({ text: bubble.innerText || bubble.textContent, role, ts: parseInt(tsMeta.dataset.ts, 10) });
       });
       saveSession(msgs, conversationId);
@@ -1619,7 +1624,6 @@
       sessionMessages.forEach((m) => addMessage(m.text, m.role, m.ts));
       msgCount = sessionMessages.filter(m => m.role === 'user').length;
     } else {
-      // Fresh start: add welcome
       addMessage(botConfig.welcome_message || `Hi there 👋\nHow can I help you today?`, 'bot', Date.now(), true);
     }
 
@@ -1641,14 +1645,12 @@
       inputEl.style.height = 'auto';
       inputEl.style.height = Math.min(inputEl.scrollHeight, 100) + 'px';
     };
-
     inputEl.addEventListener('input', autoResizeInput);
 
     /* ─────────────────────────────────────────────
        RESOLUTION CONFIRMATION PROMPT
     ───────────────────────────────────────────── */
     const showResolutionPrompt = (convId) => {
-      // Remove any existing prompt first (only one at a time)
       const existing = messagesEl.querySelector('.bb-resolve-prompt');
       if (existing) existing.remove();
 
@@ -1669,7 +1671,6 @@
         yesBtn.disabled = true;
         noBtn.disabled  = true;
         prompt.innerHTML = '<p class="bb-resolve-done">Great! Glad we could help 🐝</p>';
-        // Log the resolution — fire-and-forget, never double-count
         if (convId) {
           try {
             await fetch(`${API_URL}/chat/resolve`, {
@@ -1677,13 +1678,12 @@
               headers: { 'Content-Type': 'application/json', 'x-api-key': API_KEY },
               body: JSON.stringify({ conversation_id: convId, visitor_id: VISITOR_ID, resolved: true }),
             });
-          } catch (_) { /* non-blocking */ }
+          } catch (_) {}
         }
         setTimeout(() => { if (prompt.parentNode) prompt.remove(); }, 3000);
       });
 
       noBtn.addEventListener('click', () => {
-        // No charge — just remove the prompt
         if (prompt.parentNode) prompt.remove();
       });
 
@@ -1724,7 +1724,6 @@
         if (res.ok && data.response) {
           addMessage(data.response, 'bot', Date.now());
           if (data.conversation_id) conversationId = data.conversation_id;
-          // Show resolution confirmation — only after a non-error bot reply
           showResolutionPrompt(conversationId);
           if (!isOpen) {
             unreadCount++;
@@ -1750,18 +1749,6 @@
         dispatchSend();
       }
     });
-
-    /* ─────────────────────────────────────────────
-       EMOJI BUTTON (placeholder — opens native picker or no-op)
-    ───────────────────────────────────────────── */
-    const emojiBtnEl = shadow.getElementById('bb-emoji-btn');
-    if (emojiBtnEl) {
-      emojiBtnEl.addEventListener('click', () => {
-        // Native emoji picker is only available in some browsers via InputEvent
-        // This is a placeholder — integrate a picker library as needed
-        inputEl.focus();
-      });
-    }
 
     /* ─────────────────────────────────────────────
        KEYBOARD TRAP (Escape closes widget)
