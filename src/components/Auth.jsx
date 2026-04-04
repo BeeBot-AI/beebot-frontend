@@ -63,7 +63,7 @@ export default function Auth() {
 
             {/* Left Panel: Brand / Value Prop (Hidden on mobile) */}
             <div style={{
-                flex: 1,
+                flex: 0.66,
                 background: 'var(--color-primary-light)',
                 display: window.innerWidth > 768 ? 'flex' : 'none',
                 flexDirection: 'column',

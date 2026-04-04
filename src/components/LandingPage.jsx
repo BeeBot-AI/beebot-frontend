@@ -471,12 +471,20 @@ function LandingPage() {
         <a href="#how-it-works" className="mobile-nav-link" onClick={closeMobileMenu}>How It Works</a>
         <a href="#pricing" className="mobile-nav-link" onClick={closeMobileMenu}>Pricing</a>
         <div className="mobile-cta-col">
-          <button className="btn btn-outline" style={{ borderRadius: 14 }} onClick={() => { closeMobileMenu(); navTo('/auth'); }}>
-            Sign In
-          </button>
-          <button className="btn btn-gold" style={{ borderRadius: 14 }} onClick={() => { closeMobileMenu(); handleCTA(); }}>
-            Start Free <ArrowRight size={16} />
-          </button>
+          {isAuthenticated ? (
+            <button className="btn btn-gold" style={{ borderRadius: 14 }} onClick={() => { closeMobileMenu(); navTo('/dashboard'); }}>
+              Dashboard <ArrowRight size={16} />
+            </button>
+          ) : (
+            <>
+              <button className="btn btn-outline" style={{ borderRadius: 14 }} onClick={() => { closeMobileMenu(); navTo('/auth'); }}>
+                Sign In
+              </button>
+              <button className="btn btn-gold" style={{ borderRadius: 14 }} onClick={() => { closeMobileMenu(); handleCTA(); }}>
+                Start Free <ArrowRight size={16} />
+              </button>
+            </>
+          )}
         </div>
       </div>
 
@@ -495,17 +503,25 @@ function LandingPage() {
 
           {/* Desktop links */}
           <div className="flex gap-8 nav-desktop-links">
-            {[['Features', '#features'], ['How It Works', '#how-it-works'], ['Pricing', '#pricing']].map(([l, h]) => (
+            {[ ['How It Works', '#how-it-works'], ['Features', '#features'], ['Pricing', '#pricing']].map(([l, h]) => (
               <a key={l} href={h} className="nav-link">{l}</a>
             ))}
           </div>
 
           {/* Desktop CTA */}
           <div className="flex gap-3 items-center nav-desktop-btns">
-            <button className="btn btn-outline" style={{ padding: '9px 22px', fontSize: '0.88rem' }} onClick={() => navTo('/auth')}>Sign In</button>
-            <button className="btn btn-gold" style={{ padding: '9px 22px', fontSize: '0.88rem' }} onClick={handleCTA}>
-              Start Free <ArrowRight size={14} />
-            </button>
+            {isAuthenticated ? (
+              <button className="btn btn-gold" style={{ padding: '9px 22px', fontSize: '0.88rem' }} onClick={() => navTo('/dashboard')}>
+                Dashboard <ArrowRight size={14} />
+              </button>
+            ) : (
+              <>
+                <button className="btn btn-outline" style={{ padding: '9px 22px', fontSize: '0.88rem' }} onClick={() => navTo('/auth')}>Sign In</button>
+                <button className="btn btn-gold" style={{ padding: '9px 22px', fontSize: '0.88rem' }} onClick={handleCTA}>
+                  Start Free <ArrowRight size={14} />
+                </button>
+              </>
+            )}
           </div>
 
           {/* Hamburger (mobile) */}
@@ -518,7 +534,7 @@ function LandingPage() {
       {/* ════════════════════════════════
           HERO
       ════════════════════════════════ */}
-      <header className="hero-section" style={{ paddingTop: 140, paddingBottom: 90, background: 'var(--cream)', position: 'relative', overflow: 'hidden' }}>
+      <header className="hero-section" style={{ paddingTop: 200, paddingBottom: 152, background: 'var(--cream)', position: 'relative', overflow: 'hidden' }}>
         <div className="float-slow" style={{ position: 'absolute', top: '5%', right: '-8%', width: 600, height: 600, background: 'radial-gradient(circle, rgba(255,193,7,0.14) 0%, transparent 70%)', borderRadius: '60% 40% 30% 70%', filter: 'blur(20px)', zIndex: 0 }} />
         <div style={{ position: 'absolute', bottom: '-5%', left: '-5%', width: 400, height: 400, background: 'radial-gradient(circle, rgba(255,213,79,0.12) 0%, transparent 70%)', filter: 'blur(20px)', zIndex: 0 }} />
 
@@ -1221,23 +1237,46 @@ function LandingPage() {
           {/* Gold gradient divider */}
           <div style={{ height: 1, background: 'linear-gradient(90deg, transparent 0%, rgba(255,193,7,0.4) 20%, rgba(255,193,7,0.6) 50%, rgba(255,193,7,0.4) 80%, transparent 100%)', marginBottom: '2rem' }} />
 
-          {/* Bottom bar */}
-          <div className="footer-bottom" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '1rem', paddingBottom: '2.5rem' }}>
-            <p style={{ color: 'rgba(255,255,255,0.25)', fontSize: '0.8rem' }}>
-              © {new Date().getFullYear()} BeeBot AI Inc. Built with ☕ in San Francisco.
-            </p>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 16, flexWrap: 'wrap' }}>
-              <span style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: '0.78rem', color: 'rgba(255,255,255,0.25)' }}>
-                <span style={{ width: 7, height: 7, borderRadius: '50%', background: '#4CAF50', display: 'inline-block', boxShadow: '0 0 6px rgba(76,175,80,0.5)' }} />
-                All systems operational
-              </span>
-              {['SOC 2', 'GDPR'].map(badge => (
-                <span key={badge} style={{ display: 'inline-flex', alignItems: 'center', padding: '2px 9px', borderRadius: 999, border: '1px solid rgba(255,255,255,0.1)', fontSize: '0.7rem', color: 'rgba(255,255,255,0.28)', fontWeight: 600, letterSpacing: '0.04em' }}>
-                  {badge}
-                </span>
-              ))}
-            </div>
-          </div>
+          <div style={{ background: '#0a0a0f', borderTop: '0.5px solid rgba(255,255,255,0.08)', padding: '2.5rem 2rem 1.5rem' }}>
+
+  {/* CTA strip */}
+  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '1.5rem', flexWrap: 'wrap', paddingBottom: '2rem', borderBottom: '0.5px solid rgba(255,255,255,0.07)', marginBottom: '1.5rem' }}>
+    <div>
+      <h3 style={{ margin: '0 0 4px', fontSize: '15px', fontWeight: 500, color: 'rgba(255,255,255,0.9)', letterSpacing: '-0.01em' }}>
+        Have a project in mind? Let's build it.
+      </h3>
+      <p style={{ margin: 0, fontSize: '13px', color: 'rgba(255,255,255,0.38)' }}>
+        Dhayanithi Anandan · Full-stack AI developer
+      </p>
+    </div>
+    <a href="mailto:dhayanithianandan@gmail.com" style={{ display: 'inline-flex', alignItems: 'center', gap: '8px', padding: '10px 20px', background: 'rgba(255,255,255,0.06)', border: '0.5px solid rgba(255,255,255,0.18)', borderRadius: '999px', color: 'rgba(255,255,255,0.88)', fontSize: '13px', fontWeight: 500, textDecoration: 'none', whiteSpace: 'nowrap' }}>
+      <span style={{ width: 6, height: 6, borderRadius: '50%', background: '#A78BFA', display: 'inline-block', flexShrink: 0 }} />
+      dhayanithianandan@gmail.com
+    </a>
+  </div>
+
+  {/* Bottom bar */}
+  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '0.75rem', paddingBottom: '0.5rem' }}>
+    <p style={{ margin: 0, fontSize: '12px', color: 'rgba(255,255,255,0.22)' }}>
+      © {new Date().getFullYear()} BeeBot AI Inc. &nbsp;·&nbsp; Built by{' '}
+      <a href="mailto:dhayanithianandan@gmail.com" style={{ color: 'rgba(160,130,255,0.7)', textDecoration: 'none', borderBottom: '0.5px solid rgba(160,130,255,0.3)' }}>
+        Dhayanithi Anandan
+      </a>
+    </p>
+    <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
+      <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5, fontSize: '11.5px', color: 'rgba(255,255,255,0.28)' }}>
+        <span style={{ width: 6, height: 6, borderRadius: '50%', background: '#4ade80', display: 'inline-block', flexShrink: 0 }} />
+        All systems operational
+      </span>
+      {['SOC 2', 'GDPR'].map(badge => (
+        <span key={badge} style={{ display: 'inline-flex', alignItems: 'center', padding: '2px 8px', borderRadius: 999, border: '0.5px solid rgba(255,255,255,0.1)', fontSize: '10.5px', fontWeight: 500, color: 'rgba(255,255,255,0.25)', letterSpacing: '0.04em' }}>
+          {badge}
+        </span>
+      ))}
+    </div>
+  </div>
+
+</div>
         </div>
       </footer>
     </>
