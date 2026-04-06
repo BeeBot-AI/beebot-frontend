@@ -54,9 +54,18 @@ export const AuthProvider = ({ children }) => {
                 withCredentials: true,
                 headers: token ? { Authorization: `Bearer ${token}` } : {},
             });
-            setHasBusinessProfile(res.data.hasBusinessProfile);
-        } catch {
-            setHasBusinessProfile(false);
+            setHasBusinessProfile(res.data.hasBusinessProfile ?? false);
+        } catch (err) {
+            // Only set false on a real 404/403 — not on network errors
+            const status = err.response?.status;
+            if (status === 404 || status === 403) {
+                setHasBusinessProfile(false);
+            } else if (status === 200 || !status) {
+                // Network error — keep current value to avoid redirect loop
+                setHasBusinessProfile(prev => prev === null ? false : prev);
+            } else {
+                setHasBusinessProfile(false);
+            }
         }
     }, []);
 
@@ -161,6 +170,13 @@ export const AuthProvider = ({ children }) => {
 
     const setBusinessProfile = useCallback((val) => setHasBusinessProfile(val), []);
 
+    /* ── refetchUser: refresh token + business profile state ───────────── */
+    const refetchUser = useCallback(async () => {
+        const token = await silentRefresh();
+        if (token) await checkBusinessProfile(token);
+        return token;
+    }, [silentRefresh, checkBusinessProfile]);
+
     return (
         <AuthContext.Provider value={{
             user,
@@ -171,7 +187,7 @@ export const AuthProvider = ({ children }) => {
             login,
             logout,
             silentRefresh,
-            refetchUser:        silentRefresh,
+            refetchUser,
             setBusinessProfile,
         }}>
             {children}
