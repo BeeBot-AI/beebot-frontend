@@ -39,6 +39,27 @@ const ProtectedRoute = ({ children }) => {
     return children;
 };
 
+// Auth route — redirect already-authenticated users straight to their destination
+const AuthRoute = ({ children }) => {
+    const { isAuthenticated, isLoading, hasBusinessProfile } = useAuth();
+
+    if (isLoading) {
+        return (
+            <div style={{ height: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'var(--color-surface)' }}>
+                <div className="animate-spin" style={{ color: 'var(--color-primary-deep)' }}>
+                    <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                        <path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83" />
+                    </svg>
+                </div>
+            </div>
+        );
+    }
+
+    if (!isAuthenticated) return children;
+    if (hasBusinessProfile === false) return <Navigate to="/onboarding" />;
+    return <Navigate to="/dashboard" />;
+};
+
 // Onboarding route — only accessible to logged-in users without a business
 const OnboardingRoute = ({ children }) => {
     const { isAuthenticated, isLoading, hasBusinessProfile } = useAuth();
@@ -67,7 +88,7 @@ function App() {
     return (
         <Routes>
             <Route path="/" element={<LandingPage />} />
-            <Route path="/auth" element={<Auth />} />
+            <Route path="/auth" element={<AuthRoute><Auth /></AuthRoute>} />
             <Route path="/onboarding" element={
                 <OnboardingRoute>
                     <Onboarding />

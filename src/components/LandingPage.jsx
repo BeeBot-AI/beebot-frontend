@@ -1,8 +1,9 @@
 import React, { useEffect, useState, useRef } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
+import SharedNav from './SharedNav';
 import {
-  Bot, ArrowRight, ShieldCheck, Zap, Menu, X,
+  Bot, ArrowRight, ShieldCheck, Zap,
   Code, Database, Settings, FileText,
   HelpCircle, CheckCircle, User, Star, Upload, Cpu, Play,
   ChevronDown
@@ -398,8 +399,6 @@ const GoldUnderline = ({ width = '100%' }) => (
    MAIN COMPONENT
 ═══════════════════════════════════════════════════════════ */
 function LandingPage() {
-  const [scrolled, setScrolled] = useState(false);
-  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [activeStep, setActiveStep] = useState(1);
   const [isHoveringSteps, setIsHoveringSteps] = useState(false);
   const [openFaq, setOpenFaq] = useState(null);
@@ -408,12 +407,6 @@ function LandingPage() {
   const navTo = useNavigate();
   const { isAuthenticated } = useAuth();
   const handleCTA = () => navTo(isAuthenticated ? '/dashboard' : '/auth');
-
-  useEffect(() => {
-    const onScroll = () => setScrolled(window.scrollY > 30);
-    window.addEventListener('scroll', onScroll);
-    return () => window.removeEventListener('scroll', onScroll);
-  }, []);
 
   useEffect(() => {
     const obs = new IntersectionObserver(
@@ -433,13 +426,6 @@ function LandingPage() {
     }
     return () => clearInterval(autoAdvanceRef.current);
   }, [isHoveringSteps]);
-
-  // Close mobile menu on scroll
-  useEffect(() => {
-    if (mobileMenuOpen) setMobileMenuOpen(false);
-  }, [scrolled]);
-
-  const closeMobileMenu = () => setMobileMenuOpen(false);
 
   const steps = [
     { id: 1, icon: <Upload size={20} />, num: '01', title: 'Upload Your Knowledge', desc: 'Add documents, paste URLs, or drop text files — BeeBot indexes them instantly.' },
@@ -463,78 +449,12 @@ function LandingPage() {
     <>
       <style dangerouslySetInnerHTML={{ __html: CSS }} />
 
-      {/* ════════════════════════════════
-          MOBILE MENU OVERLAY
-      ════════════════════════════════ */}
-      <div className={`mobile-menu ${mobileMenuOpen ? 'open' : ''}`} aria-hidden={!mobileMenuOpen}>
-        <a href="#features" className="mobile-nav-link" onClick={closeMobileMenu}>Features</a>
-        <a href="#how-it-works" className="mobile-nav-link" onClick={closeMobileMenu}>How It Works</a>
-        <a href="#pricing" className="mobile-nav-link" onClick={closeMobileMenu}>Pricing</a>
-        <div className="mobile-cta-col">
-          {isAuthenticated ? (
-            <button className="btn btn-gold" style={{ borderRadius: 14 }} onClick={() => { closeMobileMenu(); navTo('/dashboard'); }}>
-              Dashboard <ArrowRight size={16} />
-            </button>
-          ) : (
-            <>
-              <button className="btn btn-outline" style={{ borderRadius: 14 }} onClick={() => { closeMobileMenu(); navTo('/auth'); }}>
-                Sign In
-              </button>
-              <button className="btn btn-gold" style={{ borderRadius: 14 }} onClick={() => { closeMobileMenu(); handleCTA(); }}>
-                Start Free <ArrowRight size={16} />
-              </button>
-            </>
-          )}
-        </div>
-      </div>
-
-      {/* ════════════════════════════════
-          NAV
-      ════════════════════════════════ */}
-      <nav className={`nav ${scrolled ? 'scrolled' : ''}`}>
-        <div className="nav-inner">
-          {/* Logo */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: 10, cursor: 'pointer' }} onClick={() => navTo('/')}>
-            <div className="logo-mark">
-              <img src="/bee-yellow.jpg" alt="BeeBot Logo" className="logo-img" />
-            </div>
-            <span style={{ fontFamily: 'var(--font-display)', fontWeight: 800, fontSize: '1.4rem', letterSpacing: '-0.02em', color: 'var(--text-dark)' }}>BeeBot.</span>
-          </div>
-
-          {/* Desktop links */}
-          <div className="flex gap-8 nav-desktop-links">
-            {[ ['How It Works', '#how-it-works'], ['Features', '#features'], ['Pricing', '#pricing']].map(([l, h]) => (
-              <a key={l} href={h} className="nav-link">{l}</a>
-            ))}
-          </div>
-
-          {/* Desktop CTA */}
-          <div className="flex gap-3 items-center nav-desktop-btns">
-            {isAuthenticated ? (
-              <button className="btn btn-gold" style={{ padding: '9px 22px', fontSize: '0.88rem' }} onClick={() => navTo('/dashboard')}>
-                Dashboard <ArrowRight size={14} />
-              </button>
-            ) : (
-              <>
-                <button className="btn btn-outline" style={{ padding: '9px 22px', fontSize: '0.88rem' }} onClick={() => navTo('/auth')}>Sign In</button>
-                <button className="btn btn-gold" style={{ padding: '9px 22px', fontSize: '0.88rem' }} onClick={handleCTA}>
-                  Start Free <ArrowRight size={14} />
-                </button>
-              </>
-            )}
-          </div>
-
-          {/* Hamburger (mobile) */}
-          <button className="hamburger-btn" onClick={() => setMobileMenuOpen(o => !o)} aria-label="Toggle menu" aria-expanded={mobileMenuOpen}>
-            {mobileMenuOpen ? <X size={22} /> : <Menu size={22} />}
-          </button>
-        </div>
-      </nav>
+      <SharedNav />
 
       {/* ════════════════════════════════
           HERO
       ════════════════════════════════ */}
-      <header className="hero-section" style={{ paddingTop: 200, paddingBottom: 152, background: 'var(--cream)', position: 'relative', overflow: 'hidden' }}>
+      <header className="hero-section" style={{ paddingTop: 100, paddingBottom: 180, background: 'var(--cream)', position: 'relative', overflow: 'hidden' }}>
         <div className="float-slow" style={{ position: 'absolute', top: '5%', right: '-8%', width: 600, height: 600, background: 'radial-gradient(circle, rgba(255,193,7,0.14) 0%, transparent 70%)', borderRadius: '60% 40% 30% 70%', filter: 'blur(20px)', zIndex: 0 }} />
         <div style={{ position: 'absolute', bottom: '-5%', left: '-5%', width: 400, height: 400, background: 'radial-gradient(circle, rgba(255,213,79,0.12) 0%, transparent 70%)', filter: 'blur(20px)', zIndex: 0 }} />
 

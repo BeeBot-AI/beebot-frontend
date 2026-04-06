@@ -1,5 +1,5 @@
-import React, { useState, useRef } from 'react';
-import { ArrowRight, CheckCircle, Store, Bot, Upload, Code, Link2, FileText, X } from 'lucide-react';
+import { useState, useRef } from 'react';
+import { ArrowRight, CheckCircle, Store, Bot, Upload, Code, X } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { useTour } from '../context/TourContext';
@@ -25,7 +25,7 @@ export default function Onboarding() {
     const [step, setStep]       = useState(0);
     const [loading, setLoading] = useState(false);
     const [error, setError]     = useState('');
-    const { refetchUser }       = useAuth();
+    const { refetchUser, setBusinessProfile } = useAuth();
     const { startTour }         = useTour();
     const navigate              = useNavigate();
     const fileInputRef          = useRef(null);
@@ -36,8 +36,6 @@ export default function Onboarding() {
         tone: 'professional',
         welcome_message: 'Hi there! How can I help you today?',
     });
-    const [kbMode, setKbMode]             = useState('url'); // 'url' | 'file'
-    const [kbUrl, setKbUrl]               = useState('');
     const [kbFile, setKbFile]             = useState(null);
     const [kbUploading, setKbUploading]   = useState(false);
     const [kbDone, setKbDone]             = useState(false);
@@ -79,15 +77,12 @@ export default function Onboarding() {
 
     const handleKbSubmit = async (e) => {
         e.preventDefault();
+        if (!kbFile) return;
         setKbUploading(true); setError('');
         try {
-            if (kbMode === 'url' && kbUrl) {
-                await axios.post(`${config.API_BASE_URL}/knowledge/url`, { url: kbUrl }, { withCredentials: true });
-            } else if (kbMode === 'file' && kbFile) {
-                const fd = new FormData();
-                fd.append('file', kbFile);
-                await axios.post(`${config.API_BASE_URL}/knowledge/upload`, fd, { withCredentials: true });
-            }
+            const fd = new FormData();
+            fd.append('file', kbFile);
+            await axios.post(`${config.API_BASE_URL}/knowledge/upload`, fd, { withCredentials: true });
             setKbDone(true);
             setTimeout(() => setStep(3), 800);
         } catch (err) {
@@ -100,17 +95,16 @@ export default function Onboarding() {
     const handleFileDrop = (e) => {
         e.preventDefault(); setDragOver(false);
         const file = e.dataTransfer.files?.[0];
-        if (file) { setKbFile(file); setKbMode('file'); }
+        if (file) setKbFile(file);
     };
 
-    const scriptTag = `<script\n  src="https://beebot-ai.vercel.app/widget.js"\n  data-api-key="YOUR_API_KEY"\n  data-api-url="https://beebot-backend.onrender.com"\n  defer>\n</script>`;
 
     return (
         <div style={{ minHeight: '100vh', display: 'flex', fontFamily: 'var(--font-body)' }}>
 
             {/* ── Left Panel (dark, branding + stepper) ──────────────────────── */}
             <div style={{
-                width: '320px', minWidth: '320px', background: '#000', color: '#fff',
+                width: '320px', minWidth: '320px', background: '#000000ff', color: '#fff',
                 display: 'flex', flexDirection: 'column', padding: '2.5rem 2rem',
                 position: 'sticky', top: 0, height: '100vh', overflowY: 'auto',
             }} className="hidden-mobile">
@@ -135,7 +129,6 @@ export default function Onboarding() {
                     {STEPS.map((s, i) => {
                         const isPast    = step > i;
                         const isActive  = step === i;
-                        const isFuture  = step < i;
                         return (
                             <div key={i} style={{ display: 'flex', gap: '14px', position: 'relative', paddingBottom: i < STEPS.length - 1 ? '2rem' : 0 }}>
                                 {/* Connector line */}
@@ -312,64 +305,40 @@ export default function Onboarding() {
                     {step === 2 && (
                         <div className="animate-fade-in">
                             <h1 style={{ fontSize: '2rem', fontWeight: 800, color: '#000', marginBottom: '8px', lineHeight: 1.15 }}>Add Knowledge</h1>
-                            <p style={{ color: 'var(--color-text-muted)', marginBottom: '2rem', lineHeight: 1.6 }}>Upload a document or add a URL so your bot can answer questions about your business.</p>
-
-                            {/* Mode toggle */}
-                            <div style={{ display: 'flex', gap: '0', border: '1.5px solid var(--color-border)', borderRadius: '10px', overflow: 'hidden', marginBottom: '1.25rem' }}>
-                                {[{ id: 'url', label: 'URL', icon: <Link2 size={14} /> }, { id: 'file', label: 'File Upload', icon: <FileText size={14} /> }].map(m => (
-                                    <button key={m.id} type="button" onClick={() => setKbMode(m.id)} style={{ flex: 1, padding: '10px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px', background: kbMode === m.id ? '#000' : '#fff', color: kbMode === m.id ? '#FDD017' : 'var(--color-text-muted)', border: 'none', fontFamily: 'inherit', fontSize: '0.85rem', fontWeight: 500, cursor: 'pointer', transition: 'all 0.15s' }}>
-                                        {m.icon} {m.label}
-                                    </button>
-                                ))}
-                            </div>
+                            <p style={{ color: 'var(--color-text-muted)', marginBottom: '2rem', lineHeight: 1.6 }}>Upload a document so your bot can answer questions about your business.</p>
 
                             <form onSubmit={handleKbSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-                                {kbMode === 'url' ? (
-                                    <div>
-                                        <label className="form-label">Website or Doc URL</label>
-                                        <input
-                                            type="url" className="input-field"
-                                            style={{ padding: '12px 14px' }}
-                                            placeholder="https://yoursite.com/docs"
-                                            value={kbUrl}
-                                            onChange={e => setKbUrl(e.target.value)}
-                                            disabled={kbUploading}
-                                        />
-                                        <p style={{ fontSize: '0.78rem', color: 'var(--color-text-faint)', marginTop: '6px' }}>We'll crawl this URL and extract knowledge for your bot.</p>
-                                    </div>
-                                ) : (
-                                    <div
-                                        onDragOver={e => { e.preventDefault(); setDragOver(true); }}
-                                        onDragLeave={() => setDragOver(false)}
-                                        onDrop={handleFileDrop}
-                                        onClick={() => fileInputRef.current?.click()}
-                                        style={{
-                                            border: `2px dashed ${dragOver ? '#FDD017' : 'var(--color-border)'}`,
-                                            borderRadius: '12px', padding: '2.5rem 1.5rem', textAlign: 'center', cursor: 'pointer',
-                                            background: dragOver ? '#FFFBDC' : 'var(--color-surface)', transition: 'all 0.2s'
-                                        }}
-                                    >
-                                        <Upload size={28} color={dragOver ? '#C8A000' : 'var(--color-text-faint)'} style={{ margin: '0 auto 10px' }} />
-                                        {kbFile ? (
-                                            <div>
-                                                <div style={{ fontWeight: 600, color: '#000', marginBottom: '4px' }}>{kbFile.name}</div>
-                                                <div style={{ fontSize: '0.8rem', color: 'var(--color-text-faint)' }}>{(kbFile.size / 1024).toFixed(1)} KB · Click to change</div>
-                                            </div>
-                                        ) : (
-                                            <div>
-                                                <div style={{ fontWeight: 600, color: '#000', marginBottom: '4px' }}>Drop your file here or click to browse</div>
-                                                <div style={{ fontSize: '0.8rem', color: 'var(--color-text-faint)' }}>Supports PDF, DOCX, TXT, CSV (max 10MB)</div>
-                                            </div>
-                                        )}
-                                        <input ref={fileInputRef} type="file" style={{ display: 'none' }} accept=".pdf,.docx,.txt,.csv" onChange={e => { if (e.target.files?.[0]) setKbFile(e.target.files[0]); }} />
-                                    </div>
-                                )}
+                                <div
+                                    onDragOver={e => { e.preventDefault(); setDragOver(true); }}
+                                    onDragLeave={() => setDragOver(false)}
+                                    onDrop={handleFileDrop}
+                                    onClick={() => fileInputRef.current?.click()}
+                                    style={{
+                                        border: `2px dashed ${dragOver ? '#FDD017' : 'var(--color-border)'}`,
+                                        borderRadius: '12px', padding: '2.5rem 1.5rem', textAlign: 'center', cursor: 'pointer',
+                                        background: dragOver ? '#FFFBDC' : 'var(--color-surface)', transition: 'all 0.2s'
+                                    }}
+                                >
+                                    <Upload size={28} color={dragOver ? '#C8A000' : 'var(--color-text-faint)'} style={{ margin: '0 auto 10px' }} />
+                                    {kbFile ? (
+                                        <div>
+                                            <div style={{ fontWeight: 600, color: '#000', marginBottom: '4px' }}>{kbFile.name}</div>
+                                            <div style={{ fontSize: '0.8rem', color: 'var(--color-text-faint)' }}>{(kbFile.size / 1024).toFixed(1)} KB · Click to change</div>
+                                        </div>
+                                    ) : (
+                                        <div>
+                                            <div style={{ fontWeight: 600, color: '#000', marginBottom: '4px' }}>Drop your file here or click to browse</div>
+                                            <div style={{ fontSize: '0.8rem', color: 'var(--color-text-faint)' }}>Supports PDF, DOCX, TXT, CSV (max 10MB)</div>
+                                        </div>
+                                    )}
+                                    <input ref={fileInputRef} type="file" style={{ display: 'none' }} accept=".pdf,.docx,.txt,.csv" onChange={e => { if (e.target.files?.[0]) setKbFile(e.target.files[0]); }} />
+                                </div>
 
                                 <div style={{ display: 'flex', gap: '10px', marginTop: '0.5rem' }}>
                                     <button type="button" onClick={() => setStep(1)} style={{ flex: 1, padding: '13px', background: '#fff', color: '#000', border: '1.5px solid var(--color-border)', borderRadius: '10px', fontFamily: 'inherit', fontSize: '0.9rem', cursor: 'pointer' }}>
                                         Back
                                     </button>
-                                    <button type="submit" disabled={kbUploading || (!kbUrl && !kbFile)} style={{ flex: 2, padding: '13px', background: '#000', color: '#fff', border: 'none', borderRadius: '10px', fontFamily: 'inherit', fontSize: '0.95rem', fontWeight: 600, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', opacity: (kbUploading || (!kbUrl && !kbFile)) ? 0.6 : 1 }}>
+                                    <button type="submit" disabled={kbUploading || !kbFile} style={{ flex: 2, padding: '13px', background: '#000', color: '#fff', border: 'none', borderRadius: '10px', fontFamily: 'inherit', fontSize: '0.95rem', fontWeight: 600, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', opacity: (kbUploading || !kbFile) ? 0.6 : 1 }}>
                                         {kbUploading ? 'Uploading...' : kbDone ? <><CheckCircle size={15} /> Done!</> : <><span>Upload & Continue</span><ArrowRight size={16} /></>}
                                     </button>
                                 </div>
@@ -412,7 +381,7 @@ export default function Onboarding() {
                             </div>
 
                             <button
-                                onClick={() => { startTour(); navigate('/dashboard'); }}
+                                onClick={() => { setBusinessProfile(true); startTour(); navigate('/dashboard'); }}
                                 style={{ width: '100%', padding: '15px', background: '#000', color: '#fff', border: 'none', borderRadius: '10px', fontFamily: 'inherit', fontSize: '1rem', fontWeight: 600, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', transition: 'background 0.2s' }}
                                 onMouseEnter={e => e.currentTarget.style.background = '#FDD017'}
                                 onMouseLeave={e => e.currentTarget.style.background = '#000'}
