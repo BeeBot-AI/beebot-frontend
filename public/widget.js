@@ -12,7 +12,15 @@
     );
 
   const API_KEY = scriptTag ? scriptTag.getAttribute('data-api-key') : null;
-  const API_URL = scriptTag ? scriptTag.getAttribute('data-api-url') : null;
+  // Normalize: strip trailing slash and any trailing /api so clients can pass
+  // either "https://host" or "https://host/api" without producing /api/api/...
+  const API_URL = (() => {
+    let url = scriptTag ? scriptTag.getAttribute('data-api-url') : null;
+    if (!url) return url;
+    url = url.replace(/\/+$/, '');          // strip trailing slashes
+    url = url.replace(/\/api$/, '');        // strip trailing /api if present
+    return url;
+  })();
 
   if (!API_KEY || !API_URL) {
     console.error('[BeeBot] Missing data-api-key or data-api-url on <script> tag.');

@@ -51,7 +51,7 @@ export default function Auth() {
                 { credential: credentialResponse.credential },
                 { withCredentials: true }
             );
-            if (res.data.success) { login(res.data.user); navigate('/dashboard'); }
+            if (res.data.success) await login(res.data.user, res.data.accessToken);
             else setError(res.data.message || 'Authentication failed');
         } catch { setError('Network error. Please try again.'); }
         finally { setLoading(false); }
@@ -68,7 +68,7 @@ export default function Auth() {
             const res = await axios.post(
                 `${config.API_BASE_URL}${endpoint}`, payload, { withCredentials: true }
             );
-            if (res.data.success) await login(res.data.user);
+            if (res.data.success) await login(res.data.user, res.data.accessToken);
             else setError(res.data.message || 'Authentication failed');
         } catch (err) {
             setError(err.response?.data?.message || 'Network error. Please try again.');
