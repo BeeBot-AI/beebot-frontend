@@ -167,7 +167,7 @@
    * ═══════════════════════════════════════════════════════════════════════ */
   const fetchConfig = async () => {
     try {
-      const res = await fetch(`${API_URL}/chat/config`, {
+      const res = await fetch(`${API_URL}/api/chat/config`, {
         headers: { 'x-api-key': API_KEY },
       });
       if (res.ok) return await res.json();
@@ -1973,7 +1973,7 @@
         prompt.innerHTML = '<p class="bb-resolve-done">Thanks for the feedback!</p>';
         if (convId) {
           try {
-            await fetch(`${API_URL}/resolutions/mark`, {
+            await fetch(`${API_URL}/api/resolutions/mark`, {
               method: 'POST',
               headers: { 'Content-Type': 'application/json', 'x-api-key': API_KEY },
               body: JSON.stringify({ conversationId: convId, resolutionType: 'confirmed' }),
@@ -2006,7 +2006,7 @@
           submitBtn.disabled = true;
           prompt.innerHTML = '<p class="bb-resolve-done">Thank you — we\'ll use this to improve.</p>';
           try {
-            await fetch(`${API_URL}/resolutions/feedback`, {
+            await fetch(`${API_URL}/api/resolutions/feedback`, {
               method: 'POST',
               headers: { 'Content-Type': 'application/json', 'x-api-key': API_KEY },
               body: JSON.stringify({
@@ -2048,7 +2048,7 @@
         const body = { query, visitor_id: VISITOR_ID };
         if (currentConvo.conversationId) body.conversation_id = currentConvo.conversationId;
 
-        const res  = await fetch(`${API_URL}/chat`, {
+        const res  = await fetch(`${API_URL}/api/chat`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json', 'x-api-key': API_KEY },
           body: JSON.stringify(body),
