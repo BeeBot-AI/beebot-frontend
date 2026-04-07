@@ -184,9 +184,12 @@
     const PRIMARY_FG    = isColorDark(PRIMARY) ? '#ffffff' : '#111111';
     const BOT_NAME      = botConfig.bot_name        || 'BeeBot Support';
     const COMPANY_NAME  = botConfig.business_name   || BOT_NAME;
-    const TAGLINE       = botConfig.tagline         || 'AI-powered support, always on';
-const STARTERS      = Array.isArray(botConfig.conversation_starters) ? botConfig.conversation_starters : [];
+    const STARTERS      = Array.isArray(botConfig.conversation_starters) ? botConfig.conversation_starters : [];
     const IS_DARK       = isColorDark(PRIMARY);
+    // Auto-contrast text for home welcome section
+    const HOME_TEXT       = IS_DARK ? '#ffffff' : '#111111';
+    const HOME_TEXT_MID   = IS_DARK ? 'rgba(255,255,255,0.75)' : 'rgba(0,0,0,0.6)';
+    const HOME_TEXT_FAINT = IS_DARK ? 'rgba(255,255,255,0.55)' : 'rgba(0,0,0,0.38)';
 
     // When primary is dark (logo is black), wrap logo in white circle
     const LOGO_BG_CSS   = IS_DARK
@@ -214,8 +217,8 @@ const STARTERS      = Array.isArray(botConfig.conversation_starters) ? botConfig
        CSS — Full Design Token System
     ════════════════════════════════════════════════════════════════ */
     const CSS = `
-      /* ── Font ── */
-      @import url('https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800;900&display=swap');
+      /* ── Fonts ── */
+      @import url('https://fonts.googleapis.com/css2?family=Playwrite+NZ+Basic+Guides&family=Ubuntu:ital,wght@0,300;0,400;0,500;0,700;1,300;1,400;1,500;1,700&display=swap');
 
       /* ── Design Tokens ── */
       :host {
@@ -264,7 +267,8 @@ const STARTERS      = Array.isArray(botConfig.conversation_starters) ? botConfig
         --transition-base:  250ms ease;
         --transition-slow:  400ms ease;
 
-        --font: 'Outfit', system-ui, -apple-system, sans-serif;
+        --font:         'Ubuntu', system-ui, -apple-system, sans-serif;
+        --font-display: 'Playwrite NZ Basic Guides', serif;
 
         /* Human-design tokens */
         --r-sm:   4px;
@@ -369,9 +373,11 @@ const STARTERS      = Array.isArray(botConfig.conversation_starters) ? botConfig
       #bb-window {
         position: fixed;
         bottom: 108px; right: 28px;
-        width: 388px; height: 630px;
+        width: 400px; height: 720px;
         max-height: calc(100dvh - 120px);
-        min-height: 460px; min-width: 300px;
+        min-height: 420px; min-width: 300px;
+        transition: opacity 0.28s cubic-bezier(0.4,0,0.2,1), transform 0.28s cubic-bezier(0.4,0,0.2,1),
+                    width 280ms ease, height 280ms ease;
         background: var(--color-surface);
         border-radius: 20px;
         box-shadow: var(--shadow-lg);
@@ -385,10 +391,12 @@ const STARTERS      = Array.isArray(botConfig.conversation_starters) ? botConfig
         opacity: 0;
         transform: translateY(18px) scale(0.96);
         pointer-events: none;
-        transition: opacity 0.28s cubic-bezier(0.4,0,0.2,1), transform 0.28s cubic-bezier(0.4,0,0.2,1);
       }
       #bb-window.open {
         opacity: 1; transform: translateY(0) scale(1); pointer-events: all;
+      }
+      #bb-window.bb-expanded {
+        width: 720px; height: 720px;
       }
 
       /* ════════════════════════════════
@@ -443,7 +451,7 @@ const STARTERS      = Array.isArray(botConfig.conversation_starters) ? botConfig
          HOME TAB — gradient blend
       ════════════════════════════════ */
       #bb-home {
-        overflow: hidden; display: flex; flex-direction: column;
+        overflow: hidden;
         /* primary → white blend, full-tab gradient */
         background: linear-gradient(180deg,
           ${PRIMARY} 0%,
@@ -479,40 +487,46 @@ const STARTERS      = Array.isArray(botConfig.conversation_starters) ? botConfig
       .bb-h-brand { display: flex; align-items: center; gap: 8px; }
       .bb-h-logo {
         width: 26px; height: 26px; border-radius: 7px;
-        background: rgba(255,255,255,0.2);
+        background: rgba(128,128,128,0.2);
         overflow: hidden; flex-shrink: 0;
         display: flex; align-items: center; justify-content: center;
       }
       .bb-h-logo img { width: 26px; height: 26px; object-fit: cover; border-radius: 5px; }
       .bb-h-brand-name {
         font-size: 12px; font-weight: 600;
-        color: rgba(255,255,255,0.75); letter-spacing: 0.01em;
+        color: ${HOME_TEXT_MID}; letter-spacing: 0.01em;
       }
       .bb-h-close-btn {
-        background: rgba(255,255,255,0.14); border: none;
+        background: rgba(128,128,128,0.14); border: none;
         width: 28px; height: 28px; border-radius: 50%;
         display: flex; align-items: center; justify-content: center;
-        cursor: pointer; color: rgba(255,255,255,0.82);
+        cursor: pointer; color: ${HOME_TEXT_MID};
         transition: background var(--t-snap), color var(--t-snap);
       }
-      .bb-h-close-btn:hover { background: rgba(255,255,255,0.28); color: #fff; }
-      .bb-h-close-btn:focus-visible { outline: 2px solid rgba(255,255,255,0.5); outline-offset: 2px; }
-      /* greeting — contrast pair: light 300 + heavy 900 */
-      .bb-h-greeting {
-        font-size: 14px; font-weight: 300;
-        color: rgba(255,255,255,0.8);
-        margin-bottom: 4px; letter-spacing: 0.01em;
+      .bb-h-close-btn:hover { background: rgba(128,128,128,0.28); color: ${HOME_TEXT}; }
+      .bb-h-close-btn:focus-visible { outline: 2px solid rgba(128,128,128,0.5); outline-offset: 2px; }
+      /* Welcome block — all Ubuntu, consistent style */
+      .bb-h-welcome {
+        display: flex; flex-direction: column;
+        gap: 2px; margin-bottom: 10px;
       }
-      .bb-h-name {
-        font-size: 28px; font-weight: 900;
-        color: #fff; line-height: 1.1;
-        letter-spacing: -0.03em;
-        margin-bottom: 7px;
+      .bb-h-welcome-hi {
+        font-family: var(--font);
+        font-size: 14px; font-weight: 400;
+        color: ${HOME_TEXT_MID};
+        line-height: 1.4;
+      }
+      .bb-h-welcome-name {
+        font-family: var(--font);
+        font-size: 28px; font-weight: 700;
+        color: ${HOME_TEXT}; line-height: 1.1;
+        letter-spacing: -0.02em;
       }
       .bb-h-tagline {
-        font-size: 13px; font-weight: 300;
-        color: rgba(255,255,255,0.68);
-        line-height: 1.5; max-width: 230px;
+        font-family: var(--font);
+        font-size: 13.5px; font-weight: 400;
+        color: ${HOME_TEXT_MID};
+        line-height: 1.5; max-width: 240px;
         margin-bottom: 14px;
       }
       .bb-h-online {
@@ -524,8 +538,8 @@ const STARTERS      = Array.isArray(botConfig.conversation_starters) ? botConfig
         animation: bbPulseGreen 2.5s ease-in-out infinite;
       }
       .bb-h-online-text {
-        font-size: 11px; font-weight: 500;
-        color: rgba(255,255,255,0.62);
+        font-size: 11px; font-weight: 400;
+        color: ${HOME_TEXT_FAINT};
       }
 
       /* ── Scrollable body (gradient fades to white here) ── */
@@ -638,50 +652,41 @@ const STARTERS      = Array.isArray(botConfig.conversation_starters) ? botConfig
       }
       .bb-h-cta:hover .bb-h-cta-arr { transform: translateX(3px); color: var(--color-text-muted); }
 
-      /* ── Starters ── */
+      /* ── Starters — pill buttons ── */
       .bb-h-starters { padding: 0 14px; flex-shrink: 0; margin-bottom: 4px; }
       .bb-h-sec-label {
         font-size: 10.5px; font-weight: 700;
         color: var(--color-text-faint);
         text-transform: uppercase; letter-spacing: 0.09em;
-        margin-bottom: 8px; padding-left: 2px;
+        margin-bottom: 10px; padding-left: 2px;
         display: flex; align-items: center; gap: 8px;
       }
       .bb-h-sec-label::after {
         content: ''; flex: 1; height: 1px; background: rgba(0,0,0,0.1);
       }
+      .bb-h-starter-pills {
+        display: flex; flex-wrap: wrap; gap: 8px;
+      }
       .bb-starter-chip {
-        display: flex; align-items: center; gap: 10px;
-        width: 100%;
-        padding: 10px 12px 10px 13px;
-        background: rgba(255,255,255,0.88);
-        border: 1px solid rgba(255,255,255,0.6);
-        border-radius: var(--r-md);
+        display: inline-flex; align-items: center; gap: 6px;
+        padding: 8px 14px;
+        background: transparent;
+        border: 1.5px solid var(--color-primary);
+        border-radius: var(--radius-pill);
         font-size: 13px; font-family: var(--font);
-        font-weight: 500; color: var(--color-text);
+        font-weight: 500; color: var(--color-primary);
         cursor: pointer; text-align: left;
-        margin-bottom: 6px; line-height: 1.4;
         animation: bbFadeUp 0.35s ease both;
-        backdrop-filter: blur(4px);
-        transition: transform var(--t-snap), box-shadow var(--t-snap),
-                    border-color var(--t-snap), background var(--t-snap);
+        transition: background var(--t-snap), color var(--t-snap), transform var(--t-snap);
+        white-space: nowrap;
       }
       .bb-starter-chip:hover {
-        transform: translateX(3px);
-        background: #fff;
-        border-color: rgba(0,0,0,0.1);
-        box-shadow: var(--shadow-sm);
+        background: var(--color-primary);
+        color: var(--color-primary-fg);
+        transform: translateY(-1px);
       }
-      .bb-starter-chip:active { transform: scale(0.98); }
+      .bb-starter-chip:active { transform: scale(0.97); }
       .bb-starter-chip:focus-visible { outline: 2px solid var(--color-primary); outline-offset: 2px; }
-      .bb-h-starter-icon { color: var(--color-primary); flex-shrink: 0; opacity: 0.8; }
-      .bb-h-starter-arr {
-        color: var(--color-text-faint); flex-shrink: 0; margin-left: auto;
-        transition: transform var(--t-snap), color var(--t-snap);
-      }
-      .bb-starter-chip:hover .bb-h-starter-arr {
-        transform: translateX(2px); color: var(--color-text-muted);
-      }
 
       /* ── Footer ── */
       .bb-home-footer {
@@ -701,16 +706,16 @@ const STARTERS      = Array.isArray(botConfig.conversation_starters) ? botConfig
       ════════════════════════════════ */
       #bb-messages-tab { overflow: hidden; background: var(--color-surface); }
 
-      .bb-msgs-header {
-        padding: var(--space-lg) var(--space-md) var(--space-md);
+      /* Action bar — Messages title on left, New Chat button on right */
+      .bb-msgs-bar {
+        padding: 10px 14px 8px;
         display: flex; align-items: center; justify-content: space-between;
         flex-shrink: 0;
         border-bottom: 1px solid var(--color-border);
-        background: linear-gradient(to bottom, var(--color-surface), rgba(255,255,255,0.97));
       }
       .bb-msgs-title {
-        font-size: var(--text-lg); font-weight: 800;
-        color: var(--color-text); letter-spacing: -0.02em; line-height: 1.3;
+        font-size: 16px; font-weight: 700;
+        color: var(--color-text); letter-spacing: -0.01em;
       }
       .bb-new-chat-btn {
         display: inline-flex; align-items: center; gap: 6px;
@@ -809,61 +814,75 @@ const STARTERS      = Array.isArray(botConfig.conversation_starters) ? botConfig
 
       /* Chat header */
       .bb-chat-header {
-        padding: 0 var(--space-md); height: 60px;
-        background: linear-gradient(to bottom, var(--color-surface), rgba(255,255,255,0.98));
-        border-bottom: 1px solid var(--color-border);
-        display: flex; align-items: center; gap: var(--space-sm);
+        padding: 0 14px; height: 58px;
+        background: var(--color-primary);
+        display: flex; align-items: center; gap: 10px;
         flex-shrink: 0; user-select: none; position: relative;
       }
       .bb-chat-back {
-        background: var(--color-surface-2); border: 1px solid var(--color-border);
-        border-radius: 50%; width: 34px; height: 34px;
+        background: rgba(255,255,255,0.12); border: none;
+        border-radius: 50%; width: 32px; height: 32px;
         display: flex; align-items: center; justify-content: center;
-        cursor: pointer; color: var(--color-text-muted);
-        transition: background var(--transition-fast), color var(--transition-fast), transform var(--transition-fast);
+        cursor: pointer; color: var(--color-primary-fg);
+        transition: background var(--t-snap), transform var(--t-snap);
         flex-shrink: 0;
       }
-      .bb-chat-back:hover { background: var(--color-surface-3); color: var(--color-text); transform: translateX(-1px); }
-      .bb-chat-back:active { transform: scale(0.95); }
-      .bb-chat-back:focus-visible { outline: 2px solid var(--color-primary); outline-offset: 2px; }
+      .bb-chat-back:hover { background: rgba(255,255,255,0.22); transform: translateX(-1px); }
+      .bb-chat-back:active { transform: scale(0.94); }
+      .bb-chat-back:focus-visible { outline: 2px solid rgba(255,255,255,0.5); outline-offset: 2px; }
 
       .bb-chat-header-info {
-        display: flex; align-items: center; gap: var(--space-sm); flex: 1; min-width: 0;
+        display: flex; align-items: center; gap: 10px; flex: 1; min-width: 0;
       }
       .bb-chat-avatar {
         width: 36px; height: 36px; border-radius: 50%;
-        background: var(--color-primary-10); overflow: hidden;
+        background: rgba(255,255,255,0.15); overflow: hidden;
         display: flex; align-items: center; justify-content: center;
         flex-shrink: 0; position: relative;
+        border: 2px solid rgba(255,255,255,0.3);
       }
       .bb-chat-avatar img { width: 36px; height: 36px; object-fit: cover; }
       .bb-chat-avatar-badge {
         position: absolute; bottom: 0; right: 0;
-        width: 10px; height: 10px; border-radius: 50%;
-        background: #22c55e; border: 2px solid var(--color-surface);
+        width: 9px; height: 9px; border-radius: 50%;
+        background: #44d17a; border: 2px solid var(--color-primary);
       }
       .bb-chat-header-name {
-        color: var(--color-text); font-size: var(--text-base); font-weight: 700;
+        color: var(--color-primary-fg);
+        font-family: var(--font); font-size: 18px; font-weight: 700;
         white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
-        line-height: 1.3; letter-spacing: -0.01em;
+        line-height: 1.2; letter-spacing: -0.01em;
       }
       .bb-chat-header-sub {
-        color: var(--color-text-faint); font-size: var(--text-xs); font-weight: 400; margin-top: 1px;
+        color: var(--color-primary-fg); opacity: 0.7;
+        font-size: 11px; font-weight: 300; font-family: var(--font);
+        margin-top: 1px; line-height: 1;
       }
       .bb-chat-header-actions { display: flex; align-items: center; gap: 2px; flex-shrink: 0; }
       .bb-chat-hbtn {
         background: transparent; border: none; border-radius: var(--radius-sm);
-        width: 34px; height: 34px; min-width: 44px; min-height: 44px;
+        width: 34px; height: 34px;
         display: flex; align-items: center; justify-content: center;
-        cursor: pointer; color: var(--color-text-faint);
-        transition: background var(--transition-fast), color var(--transition-fast);
+        cursor: pointer; color: var(--color-primary-fg); opacity: 0.8;
+        transition: background var(--t-snap), opacity var(--t-snap);
       }
-      .bb-chat-hbtn:hover { background: var(--color-surface-2); color: var(--color-text-muted); }
-      .bb-chat-hbtn:focus-visible { outline: 2px solid var(--color-primary); outline-offset: 2px; }
+      .bb-chat-hbtn:hover { background: rgba(255,255,255,0.15); opacity: 1; }
+      .bb-chat-hbtn:focus-visible { outline: 2px solid rgba(255,255,255,0.5); outline-offset: 2px; }
+      /* Expand/collapse button */
+      .bb-chat-expand {
+        background: transparent; border: none; border-radius: var(--radius-sm);
+        width: 32px; height: 32px;
+        display: flex; align-items: center; justify-content: center;
+        cursor: pointer; color: var(--color-primary-fg); opacity: 0.75;
+        transition: background var(--t-snap), opacity var(--t-snap);
+        flex-shrink: 0; font-size: 16px;
+      }
+      .bb-chat-expand:hover { background: rgba(255,255,255,0.15); opacity: 1; }
+      .bb-chat-expand:focus-visible { outline: 2px solid rgba(255,255,255,0.5); outline-offset: 2px; }
 
       /* Dropdown */
       .bb-dropdown {
-        position: absolute; top: 58px; right: 12px;
+        position: absolute; top: 60px; right: 12px;
         background: var(--color-surface); border-radius: var(--radius-md);
         box-shadow: var(--shadow-md), 0 0 0 1px var(--color-border-strong);
         min-width: 195px; z-index: 20; overflow: hidden;
@@ -1017,8 +1036,23 @@ const STARTERS      = Array.isArray(botConfig.conversation_starters) ? botConfig
       .bb-resolve-yes:hover, .bb-resolve-no:hover { opacity: 0.82; }
       .bb-resolve-yes:active, .bb-resolve-no:active { transform: scale(0.97); }
       .bb-resolve-yes:focus-visible, .bb-resolve-no:focus-visible { outline: 2px solid var(--color-primary); outline-offset: 2px; }
-      .bb-resolve-yes { background: var(--color-text); color: #fff; }
+      .bb-resolve-yes { background: var(--color-primary); color: var(--color-primary-fg); }
       .bb-resolve-no  { background: var(--color-surface-3); color: var(--color-text-muted); }
+      .bb-resolve-submit { background: var(--color-primary); color: var(--color-primary-fg);
+        flex: 1; padding: var(--space-sm); border-radius: var(--radius-sm);
+        font-size: var(--text-sm); font-weight: 600; cursor: pointer; border: none;
+        transition: opacity var(--transition-fast); font-family: var(--font); min-height: 36px; }
+      .bb-resolve-submit:hover { opacity: 0.88; }
+      .bb-resolve-skip { background: transparent; color: var(--color-text-muted); border: none;
+        font-size: var(--text-sm); cursor: pointer; padding: var(--space-sm);
+        font-family: var(--font); font-weight: 400; }
+      .bb-resolve-textarea {
+        width: 100%; border: 1px solid var(--color-border); border-radius: var(--radius-sm);
+        padding: 8px 10px; font-size: var(--text-sm); font-family: var(--font);
+        color: var(--color-text); resize: none; outline: none; line-height: 1.5;
+        transition: border-color var(--transition-fast);
+      }
+      .bb-resolve-textarea:focus { border-color: var(--color-primary); }
       .bb-resolve-done { font-size: var(--text-sm); color: var(--color-text-muted); text-align: center; padding: 4px 0; font-style: italic; }
 
       /* Typing indicator */
@@ -1062,66 +1096,135 @@ const STARTERS      = Array.isArray(botConfig.conversation_starters) ? botConfig
       .bb-chat-starter-chip:hover { background: var(--color-surface-3); border-color: var(--color-border-strong); box-shadow: var(--shadow-sm); }
       .bb-chat-starter-chip:focus-visible { outline: 2px solid var(--color-primary); outline-offset: 2px; }
 
-      /* Human handoff */
-      #bb-handoff-banner {
-        margin: 0 var(--space-md) var(--space-sm);
-        padding: 11px var(--space-md);
-        background: var(--color-success-bg);
-        border: 1px solid rgba(22,163,74,0.25); border-radius: var(--radius-md);
-        display: none; align-items: center; justify-content: space-between;
-        gap: var(--space-sm); font-size: var(--text-sm); color: var(--color-success);
-        animation: bbSlideUp 0.25s ease both; box-shadow: var(--shadow-sm);
+      /* Human handoff modal overlay */
+      #bb-handoff-overlay {
+        position: absolute; inset: 0; z-index: 30;
+        background: rgba(0,0,0,0.35);
+        backdrop-filter: blur(2px);
+        display: flex; align-items: center; justify-content: center;
+        animation: bbFadeIn 0.2s ease;
       }
-      #bb-handoff-banner.visible { display: flex; }
-      #bb-handoff-banner-text { display: flex; align-items: center; gap: 7px; font-weight: 500; }
-      #bb-handoff-banner-btn {
-        background: var(--color-success); color: #fff; border: none;
-        padding: 6px var(--space-md); border-radius: var(--radius-sm);
-        cursor: pointer; font-size: var(--text-xs); font-family: var(--font);
-        font-weight: 700; white-space: nowrap; flex-shrink: 0;
-        transition: opacity var(--transition-fast), transform var(--transition-fast); min-height: 32px;
+      @keyframes bbFadeIn {
+        from { opacity: 0; }
+        to   { opacity: 1; }
       }
-      #bb-handoff-banner-btn:hover { opacity: 0.88; }
-      #bb-handoff-banner-btn:active { transform: scale(0.97); }
+      #bb-handoff-overlay.hm-hidden { display: none; }
+      #bb-handoff-modal {
+        background: #ffffff;
+        border-radius: 18px;
+        padding: 28px 24px 22px;
+        width: 88%;
+        box-shadow: 0 12px 40px rgba(0,0,0,0.18);
+        position: relative;
+        text-align: left;
+        animation: bbModalUp 0.25s ease;
+      }
+      @keyframes bbModalUp {
+        from { opacity: 0; transform: translateY(12px); }
+        to   { opacity: 1; transform: translateY(0); }
+      }
+      .bb-hm-close {
+        position: absolute; top: 14px; right: 14px;
+        width: 28px; height: 28px; border-radius: 50%;
+        border: none; background: rgba(0,0,0,0.05);
+        display: flex; align-items: center; justify-content: center;
+        cursor: pointer; color: #666;
+        transition: background var(--t-snap);
+      }
+      .bb-hm-close:hover { background: rgba(0,0,0,0.1); }
+      .bb-hm-icon-wrap {
+        width: 42px; height: 42px; border-radius: 50%;
+        background: var(--color-primary-10); color: var(--color-primary);
+        display: flex; align-items: center; justify-content: center;
+        margin-bottom: 14px;
+      }
+      .bb-hm-title {
+        font-size: 16px; font-weight: 700; font-family: var(--font);
+        color: var(--color-text); margin-bottom: 6px; letter-spacing: -0.01em;
+      }
+      .bb-hm-sub {
+        font-size: 13px; font-weight: 300; color: #666;
+        line-height: 1.5; margin-bottom: 20px;
+      }
+      .bb-hm-cta {
+        display: block; width: 100%;
+        background: var(--color-primary); color: var(--color-primary-fg);
+        border: none; border-radius: 10px;
+        padding: 11px; font-size: 14px; font-weight: 700;
+        font-family: var(--font); cursor: pointer;
+        transition: opacity var(--t-snap), transform var(--t-snap);
+        margin-bottom: 10px;
+      }
+      .bb-hm-cta:hover { opacity: 0.9; }
+      .bb-hm-cta:active { transform: scale(0.98); }
+      .bb-hm-cancel {
+        display: block; width: 100%; background: none;
+        border: none; cursor: pointer;
+        font-size: 13px; font-weight: 400; color: #888;
+        font-family: var(--font); padding: 4px;
+        text-align: center;
+        transition: color var(--t-snap);
+      }
+      .bb-hm-cancel:hover { color: #555; }
 
-      /* Input */
+      /* ── Input bar ── */
       .bb-input-area {
-        padding: var(--space-sm) var(--space-md) var(--space-md);
-        background: var(--color-surface); border-top: 1px solid var(--color-border); flex-shrink: 0;
+        padding: 10px 12px;
+        background: var(--color-surface);
+        border-top: 1px solid rgba(0,0,0,0.08);
+        flex-shrink: 0;
+        display: flex; align-items: center; gap: 6px;
       }
+      /* Icon buttons: emoji, attach, image */
+      .bb-input-icon-btn {
+        width: 34px; height: 34px; border-radius: 50%;
+        border: none; background: transparent;
+        color: #888; flex-shrink: 0;
+        display: flex; align-items: center; justify-content: center;
+        cursor: pointer;
+        transition: background var(--t-snap), color var(--t-snap);
+      }
+      .bb-input-icon-btn:hover {
+        background: rgba(0,0,0,0.06);
+        color: var(--color-primary);
+      }
+      .bb-input-icon-btn:focus-visible { outline: 2px solid var(--color-primary); outline-offset: 2px; }
+      /* Text input */
       .bb-input-wrap {
-        display: flex; align-items: flex-end; gap: var(--space-sm);
-        background: var(--color-surface-2);
-        border: 1.5px solid var(--color-border); border-radius: var(--radius-md);
-        padding: var(--space-sm) var(--space-sm) var(--space-sm) var(--space-md);
-        transition: border-color var(--transition-base), box-shadow var(--transition-base), background var(--transition-base);
+        flex: 1; display: flex; align-items: flex-end;
+        border: 1px solid rgba(0,0,0,0.12);
+        border-radius: 22px;
+        padding: 9px 14px;
+        background: var(--color-surface);
+        transition: border-color 200ms ease, box-shadow 200ms ease;
       }
       .bb-input-wrap:focus-within {
         border-color: var(--color-primary);
-        background: var(--color-surface);
         box-shadow: 0 0 0 3px var(--color-primary-10);
       }
       .bb-input {
         flex: 1; border: none; outline: none;
-        font-size: var(--text-base); font-family: var(--font);
+        font-size: 14px; font-family: var(--font); font-weight: 400;
         background: transparent; color: var(--color-text);
-        resize: none; min-height: 22px; max-height: 100px;
-        line-height: 1.55; overflow-y: auto; padding: 2px 0;
-        scrollbar-width: none; font-weight: 400;
+        resize: none; min-height: 20px; max-height: 100px;
+        line-height: 1.5; overflow-y: auto; padding: 0;
+        scrollbar-width: none;
       }
       .bb-input::-webkit-scrollbar { display: none; }
       .bb-input::placeholder { color: var(--color-text-faint); font-weight: 400; }
       .bb-input:disabled { opacity: 0.45; cursor: not-allowed; }
+      /* Send button */
       .bb-send {
-        width: 36px; height: 36px; border-radius: var(--radius-sm);
-        background: var(--color-text); border: none; cursor: pointer;
-        display: flex; align-items: center; justify-content: center; color: #fff;
-        transition: opacity var(--transition-fast), transform var(--transition-fast);
-        flex-shrink: 0; min-height: 36px;
+        width: 36px; height: 36px; border-radius: 50%;
+        background: var(--color-primary); border: none; cursor: pointer;
+        display: flex; align-items: center; justify-content: center;
+        color: var(--color-primary-fg);
+        transition: filter var(--t-snap), transform var(--t-snap);
+        flex-shrink: 0;
       }
-      .bb-send:hover { opacity: 0.8; }
-      .bb-send:active { transform: scale(0.92); }
-      .bb-send:disabled { opacity: 0.25; cursor: not-allowed; }
+      .bb-send:hover { filter: brightness(1.1); }
+      .bb-send:active { transform: scale(0.94); }
+      .bb-send:disabled { opacity: 0.3; cursor: not-allowed; filter: none; }
       .bb-send:focus-visible { outline: 2px solid var(--color-primary); outline-offset: 2px; }
 
       .bb-input-footer { text-align: center; font-size: var(--text-xs); margin-top: var(--space-sm); }
@@ -1146,15 +1249,16 @@ const STARTERS      = Array.isArray(botConfig.conversation_starters) ? botConfig
           max-height: 100dvh !important; border-radius: 0 !important;
         }
         #bb-launcher { bottom: 20px; right: 20px; }
-        .bb-h-name { font-size: 22px !important; }
+        .bb-h-welcome-name { font-size: 22px !important; }
       }
     `;
 
     /* ════════════════════════════════════════════════════════════════
-       HTML TEMPLATE
+       HTML TEMPLATES — one per section
     ════════════════════════════════════════════════════════════════ */
-    const HTML = `
-      <!-- LAUNCHER -->
+
+    /* ── Launcher bubble ── */
+    const HTML_LAUNCHER = `
       <button id="bb-launcher" aria-label="Open ${BOT_NAME} chat" title="Chat with us">
         <div class="bb-launch-logo-bg">
           <img class="bb-launch-img" src="${BEE_LOGO_URL}" alt="${BOT_NAME}"
@@ -1163,171 +1267,203 @@ const STARTERS      = Array.isArray(botConfig.conversation_starters) ? botConfig
         </div>
         <span id="bb-badge"></span>
       </button>
+    `;
 
-      <!-- WIDGET WINDOW -->
+    /* ── Home tab ── */
+    const HTML_HOME = `
+      <div id="bb-home" class="bb-tab-view active">
+
+        <!-- Welcome section (sits in the primary color zone of the gradient) -->
+        <div class="bb-h-welcome-section">
+          <div class="bb-h-topbar">
+            <div class="bb-h-brand">
+              <div class="bb-h-logo">
+                <img src="${BEE_LOGO_URL}" alt="${COMPANY_NAME}"
+                     onerror="this.parentNode.innerHTML='<span style=\\'color:#fff;font-weight:800;font-size:12px\\'>${COMPANY_NAME.charAt(0)}</span>'">
+              </div>
+              <span class="bb-h-brand-name">${COMPANY_NAME}</span>
+            </div>
+            <button class="bb-h-close-btn" id="bb-home-close" aria-label="Close">${IC.close}</button>
+          </div>
+          <div class="bb-h-welcome">
+            <span class="bb-h-welcome-hi">Hi there 👋 Welcome to</span>
+            <span class="bb-h-welcome-name">${COMPANY_NAME}</span>
+          </div>
+          <div class="bb-h-tagline">${BOT_NAME} is here to answer your questions — just ask!</div>
+          <div class="bb-h-online">
+            <span class="bb-h-dot"></span>
+            <span class="bb-h-online-text">Typically replies instantly</span>
+          </div>
+        </div>
+
+        <!-- Scrollable body (gradient fades to near-white here) -->
+        <div class="bb-h-body">
+
+          <!-- Recent conversations — populated by JS -->
+          <div class="bb-h-recent-card" id="bb-h-recent" style="display:none"></div>
+
+          <!-- New chat CTA -->
+          <div class="bb-h-cta-wrap">
+            <button class="bb-h-cta" id="bb-home-start-chat" type="button">
+              <div class="bb-h-cta-icon-wrap">${IC.chat}</div>
+              <div class="bb-h-cta-copy">
+                <span class="bb-h-cta-title">Have a question?</span>
+                <span class="bb-h-cta-sub">Chat with ${BOT_NAME}</span>
+              </div>
+              <div class="bb-h-cta-arr">${IC.chevronRight}</div>
+            </button>
+          </div>
+
+          ${STARTERS.length > 0 ? `
+          <div class="bb-h-starters">
+            <div class="bb-h-sec-label">Quick questions</div>
+            <div class="bb-h-starter-pills">
+              ${STARTERS.slice(0, 4).map((s, i) => `
+                <button class="bb-starter-chip" data-starter="${s.replace(/"/g, '&quot;')}" type="button"
+                        style="animation-delay:${i * 70}ms">${s}</button>
+              `).join('')}
+            </div>
+          </div>
+          ` : ''}
+
+          <div class="bb-home-footer">
+            <a class="bb-powered" href="https://beebot.ai" target="_blank" rel="noopener">
+              🐝&nbsp;Powered by BeeBot AI
+            </a>
+          </div>
+        </div>
+      </div>
+    `;
+
+    /* ── Messages tab — header + past conversations ── */
+    const HTML_MESSAGES = `
+      <div id="bb-messages-tab" class="bb-tab-view">
+        <div class="bb-msgs-bar">
+          <span class="bb-msgs-title">Messages</span>
+          <button class="bb-new-chat-btn" id="bb-msgs-new-chat-btn" type="button">
+            ${IC.newChat}&nbsp;New chat
+          </button>
+        </div>
+        <div class="bb-convos-list" id="bb-convos-list"></div>
+      </div>
+    `;
+
+    /* ── Tab bar ── */
+    const HTML_TAB_BAR = `
+      <div class="bb-tab-bar" role="tablist">
+        <button class="bb-tab-btn active" data-tab="home" role="tab" aria-selected="true">
+          ${IC.home}
+          <span>Home</span>
+        </button>
+        <button class="bb-tab-btn" data-tab="messages" role="tab" aria-selected="false">
+          ${IC.messages}
+          <span>Messages</span>
+        </button>
+      </div>
+    `;
+
+    /* ── Chat view ── */
+    const HTML_CHAT = `
+      <div id="bb-chat" role="main" aria-label="Chat">
+
+        <div class="bb-chat-header">
+          <button class="bb-chat-back" id="bb-chat-back" aria-label="Back to messages">${IC.back}</button>
+          <div class="bb-chat-header-info">
+            <div class="bb-chat-avatar">
+              <img src="${BEE_LOGO_URL}" alt="${BOT_NAME}" onerror="this.style.display='none'">
+              <div class="bb-chat-avatar-badge"></div>
+            </div>
+            <div style="min-width:0">
+              <div class="bb-chat-header-name">${BOT_NAME}</div>
+            </div>
+          </div>
+          <div class="bb-chat-header-actions">
+            <button class="bb-chat-hbtn" id="bb-talk-human-btn" aria-label="Request human support" title="Talk to a human">${IC.agent}</button>
+            <button class="bb-chat-hbtn" id="bb-more-btn" aria-label="More options">${IC.more}</button>
+            <button class="bb-chat-expand" id="bb-expand-btn" aria-label="Expand chat" title="Expand">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 3 21 3 21 9"/><polyline points="9 21 3 21 3 15"/><line x1="21" y1="3" x2="14" y2="10"/><line x1="3" y1="21" x2="10" y2="14"/></svg>
+            </button>
+          </div>
+          <div class="bb-dropdown" id="bb-dropdown">
+            <button class="bb-dropdown-item" id="bb-new-convo-btn" type="button">${IC.newChat}&nbsp; New conversation</button>
+            <div class="bb-dropdown-divider"></div>
+            <button class="bb-dropdown-item danger" id="bb-close-chat-btn" type="button">${IC.close}&nbsp; Close chat</button>
+          </div>
+        </div>
+
+        <div class="bb-messages-area" id="bb-messages" aria-live="polite" aria-relevant="additions">
+          <div class="bb-typing" id="bb-typing">
+            <div class="bb-dot"></div>
+            <div class="bb-dot"></div>
+            <div class="bb-dot"></div>
+          </div>
+        </div>
+
+        <div id="bb-chat-starters" class="hidden">
+          ${STARTERS.map(s => `
+            <button class="bb-chat-starter-chip" data-starter="${s.replace(/"/g, '&quot;')}" type="button">
+              <span>${s}</span>
+            </button>
+          `).join('')}
+        </div>
+
+        <!-- Human handoff modal -->
+        <div id="bb-handoff-overlay" style="display:none">
+          <div id="bb-handoff-modal">
+            <button id="bb-handoff-close" class="bb-hm-close" aria-label="Close">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><path d="M18 6 6 18M6 6l12 12"/></svg>
+            </button>
+            <div class="bb-hm-icon-wrap">
+              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+            </div>
+            <h3 class="bb-hm-title">Connect with a person</h3>
+            <p class="bb-hm-sub">Our team usually replies within a few minutes.</p>
+            <button class="bb-hm-cta" id="bb-handoff-banner-btn" type="button">Start Chat</button>
+            <button class="bb-hm-cancel" id="bb-handoff-cancel" type="button">Cancel</button>
+          </div>
+        </div>
+
+        <div class="bb-input-area">
+          <!-- Emoji button (decorative) -->
+          <button class="bb-input-icon-btn" type="button" aria-label="Emoji" tabindex="-1">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M8 13s1.5 2 4 2 4-2 4-2"/><line x1="9" y1="9" x2="9.01" y2="9"/><line x1="15" y1="9" x2="15.01" y2="9"/></svg>
+          </button>
+          <!-- Text input -->
+          <div class="bb-input-wrap">
+            <textarea
+              id="bb-input" class="bb-input"
+              placeholder="Ask a question…"
+              rows="1" maxlength="2000"
+              aria-label="Type your message"
+            ></textarea>
+          </div>
+          <!-- Attach button (decorative) -->
+          <button class="bb-input-icon-btn" type="button" aria-label="Attach file" tabindex="-1">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="m21.44 11.05-9.19 9.19a6 6 0 0 1-8.49-8.49l8.57-8.57A4 4 0 1 1 18 8.84l-8.59 8.57a2 2 0 0 1-2.83-2.83l8.49-8.48"/></svg>
+          </button>
+          <!-- Send button -->
+          <button class="bb-send" id="bb-send" type="button" aria-label="Send message">${IC.send}</button>
+        </div>
+        <div class="bb-input-footer" style="padding:0 12px 8px;text-align:center">
+          <a class="bb-powered" href="https://beebot-ai" target="_blank" rel="noopener">
+            🐝&nbsp;Powered by BeeBot AI
+          </a>
+        </div>
+
+      </div>
+    `;
+
+    /* ── Compose full widget HTML from section templates ── */
+    const HTML = `
+      ${HTML_LAUNCHER}
       <div id="bb-window" role="dialog" aria-modal="true" aria-label="${BOT_NAME}">
-
-        <!-- TAB VIEWS -->
         <div id="bb-tab-views">
-
-          <!-- ══ HOME TAB ══ -->
-          <div id="bb-home" class="bb-tab-view active">
-
-            <!-- Welcome section (sits in the primary color zone of the gradient) -->
-            <div class="bb-h-welcome-section">
-              <div class="bb-h-topbar">
-                <div class="bb-h-brand">
-                  <div class="bb-h-logo">
-                    <img src="${BEE_LOGO_URL}" alt="${COMPANY_NAME}"
-                         onerror="this.parentNode.innerHTML='<span style=\\'color:#fff;font-weight:800;font-size:12px\\'>${COMPANY_NAME.charAt(0)}</span>'">
-                  </div>
-                  <span class="bb-h-brand-name">${COMPANY_NAME}</span>
-                </div>
-                <button class="bb-h-close-btn" id="bb-home-close" aria-label="Close">${IC.close}</button>
-              </div>
-              <div class="bb-h-greeting">Hi there 👋</div>
-              <div class="bb-h-name">${COMPANY_NAME}</div>
-              <div class="bb-h-tagline">${TAGLINE}</div>
-              <div class="bb-h-online">
-                <span class="bb-h-dot"></span>
-                <span class="bb-h-online-text">Typically replies instantly</span>
-              </div>
-            </div>
-
-            <!-- Scrollable body (gradient fades to near-white here) -->
-            <div class="bb-h-body">
-
-              <!-- Recent conversations — populated by JS -->
-              <div class="bb-h-recent-card" id="bb-h-recent" style="display:none"></div>
-
-              <!-- New chat CTA -->
-              <div class="bb-h-cta-wrap">
-                <button class="bb-h-cta" id="bb-home-start-chat" type="button">
-                  <div class="bb-h-cta-icon-wrap">${IC.chat}</div>
-                  <div class="bb-h-cta-copy">
-                    <span class="bb-h-cta-title">Have a question?</span>
-                    <span class="bb-h-cta-sub">Chat with ${BOT_NAME}</span>
-                  </div>
-                  <div class="bb-h-cta-arr">${IC.chevronRight}</div>
-                </button>
-              </div>
-
-              ${STARTERS.length > 0 ? `
-              <div class="bb-h-starters">
-                <div class="bb-h-sec-label">Suggested</div>
-                ${STARTERS.map((s, i) => `
-                  <button class="bb-starter-chip" data-starter="${s.replace(/"/g, '&quot;')}" type="button"
-                          style="animation-delay:${i * 70}ms">
-                    <span class="bb-h-starter-icon">${IC.sparkle}</span>
-                    <span style="flex:1;line-height:1.4">${s}</span>
-                    <span class="bb-h-starter-arr">${IC.chevronRight}</span>
-                  </button>
-                `).join('')}
-              </div>
-              ` : ''}
-
-              <div class="bb-home-footer">
-                <a class="bb-powered" href="https://beebot.ai" target="_blank" rel="noopener">
-                  🐝&nbsp;Powered by BeeBot AI
-                </a>
-              </div>
-            </div>
-          </div>
-
-          <!-- ══ MESSAGES TAB ══ -->
-          <div id="bb-messages-tab" class="bb-tab-view">
-            <div class="bb-msgs-header">
-              <span class="bb-msgs-title">Messages</span>
-              <button class="bb-new-chat-btn" id="bb-new-chat-tab-btn" type="button">
-                ${IC.newChat}&nbsp;New Chat
-              </button>
-            </div>
-            <div class="bb-convos-list" id="bb-convos-list"></div>
-          </div>
-
-          <!-- TAB BAR -->
-          <div class="bb-tab-bar" role="tablist">
-            <button class="bb-tab-btn active" data-tab="home" role="tab" aria-selected="true">
-              ${IC.home}
-              <span>Home</span>
-            </button>
-            <button class="bb-tab-btn" data-tab="messages" role="tab" aria-selected="false">
-              ${IC.messages}
-              <span>Messages</span>
-            </button>
-          </div>
-
-        </div><!-- /#bb-tab-views -->
-
-        <!-- ══ CHAT VIEW ══ -->
-        <div id="bb-chat" role="main" aria-label="Chat">
-
-          <div class="bb-chat-header">
-            <button class="bb-chat-back" id="bb-chat-back" aria-label="Back to messages">${IC.back}</button>
-            <div class="bb-chat-header-info">
-              <div class="bb-chat-avatar">
-                <img src="${BEE_LOGO_URL}" alt="${BOT_NAME}" onerror="this.style.display='none'">
-                <div class="bb-chat-avatar-badge"></div>
-              </div>
-              <div>
-                <div class="bb-chat-header-name">${BOT_NAME}</div>
-               
-              </div>
-            </div>
-            <div class="bb-chat-header-actions">
-              <button class="bb-chat-hbtn" id="bb-talk-human-btn" aria-label="Request human support" title="Talk to a human">${IC.agent}</button>
-              <button class="bb-chat-hbtn" id="bb-more-btn" aria-label="More options">${IC.more}</button>
-            </div>
-            <div class="bb-dropdown" id="bb-dropdown">
-              <button class="bb-dropdown-item" id="bb-new-convo-btn" type="button">${IC.newChat}&nbsp; New conversation</button>
-              <div class="bb-dropdown-divider"></div>
-              <button class="bb-dropdown-item danger" id="bb-close-chat-btn" type="button">${IC.close}&nbsp; Close chat</button>
-            </div>
-          </div>
-
-          <div class="bb-messages-area" id="bb-messages" aria-live="polite" aria-relevant="additions">
-            <div class="bb-typing" id="bb-typing">
-              <div class="bb-dot"></div>
-              <div class="bb-dot"></div>
-              <div class="bb-dot"></div>
-            </div>
-          </div>
-
-          <div id="bb-chat-starters" class="hidden">
-            ${STARTERS.map(s => `
-              <button class="bb-chat-starter-chip" data-starter="${s.replace(/"/g, '&quot;')}" type="button">
-                <span>${s}</span>
-              </button>
-            `).join('')}
-          </div>
-
-          <div id="bb-handoff-banner">
-            <div id="bb-handoff-banner-text">${IC.agent}&nbsp; Connect with a human agent</div>
-            <button id="bb-handoff-banner-btn" type="button">Talk to a human</button>
-          </div>
-
-          <div class="bb-input-area">
-            <div class="bb-input-wrap">
-              <textarea
-                id="bb-input" class="bb-input"
-                placeholder="Ask a question…"
-                rows="1" maxlength="2000"
-                aria-label="Type your message"
-              ></textarea>
-              <div>
-                <button class="bb-send" id="bb-send" type="button" aria-label="Send message">${IC.send}</button>
-              </div>
-            </div>
-            <div class="bb-input-footer">
-              <a class="bb-powered" href="https://beebot.ai" target="_blank" rel="noopener">
-                🐝&nbsp;Powered by BeeBot AI
-              </a>
-            </div>
-          </div>
-
-        </div><!-- /#bb-chat -->
-
-      </div><!-- /#bb-window -->
+          ${HTML_HOME}
+          ${HTML_MESSAGES}
+          ${HTML_TAB_BAR}
+        </div>
+        ${HTML_CHAT}
+      </div>
     `;
 
     /* ── Mount Shadow DOM ── */
@@ -1337,7 +1473,7 @@ const STARTERS      = Array.isArray(botConfig.conversation_starters) ? botConfig
 
     const shadow = host.attachShadow({ mode: 'open' });
 
-    // Load Outfit font inside shadow
+    // Load fonts inside shadow DOM (Playwrite NZ + Ubuntu)
     const fontPreconn1 = document.createElement('link');
     fontPreconn1.rel = 'preconnect';
     fontPreconn1.href = 'https://fonts.googleapis.com';
@@ -1351,7 +1487,7 @@ const STARTERS      = Array.isArray(botConfig.conversation_starters) ? botConfig
 
     const fontLink = document.createElement('link');
     fontLink.rel = 'stylesheet';
-    fontLink.href = 'https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800;900&display=swap';
+    fontLink.href = 'https://fonts.googleapis.com/css2?family=Playwrite+NZ+Basic+Guides&family=Ubuntu:ital,wght@0,300;0,400;0,500;0,700;1,300;1,400;1,500;1,700&display=swap';
     shadow.appendChild(fontLink);
 
     const styleEl = document.createElement('style');
@@ -1371,20 +1507,22 @@ const STARTERS      = Array.isArray(botConfig.conversation_starters) ? botConfig
     const chatView         = shadow.getElementById('bb-chat');
     const homeClose        = shadow.getElementById('bb-home-close');
     const homeStartChat    = shadow.getElementById('bb-home-start-chat');
-    const newChatTabBtn    = shadow.getElementById('bb-new-chat-tab-btn');
     const convosListEl     = shadow.getElementById('bb-convos-list');
     const chatBack         = shadow.getElementById('bb-chat-back');
     const messagesEl       = shadow.getElementById('bb-messages');
     const typingEl         = shadow.getElementById('bb-typing');
     const chatStartersEl   = shadow.getElementById('bb-chat-starters');
-    const handoffBanner    = shadow.getElementById('bb-handoff-banner');
+    const handoffBanner    = shadow.getElementById('bb-handoff-overlay');
     const handoffBannerBtn = shadow.getElementById('bb-handoff-banner-btn');
+    const handoffCancel    = shadow.getElementById('bb-handoff-cancel');
+    const handoffClose     = shadow.getElementById('bb-handoff-close');
     const inputEl          = shadow.getElementById('bb-input');
     const sendBtn          = shadow.getElementById('bb-send');
     const talkHumanBtn     = shadow.getElementById('bb-talk-human-btn');
     const moreBtn          = shadow.getElementById('bb-more-btn');
     const dropdown         = shadow.getElementById('bb-dropdown');
     const newConvoBtn      = shadow.getElementById('bb-new-convo-btn');
+    const msgsNewChatBtn   = shadow.getElementById('bb-msgs-new-chat-btn');
     const closeChatBtn     = shadow.getElementById('bb-close-chat-btn');
     const tabBtns          = shadow.querySelectorAll('.bb-tab-btn');
 
@@ -1394,7 +1532,6 @@ const STARTERS      = Array.isArray(botConfig.conversation_starters) ? botConfig
     let isOpen       = false;
     let isBusy       = false;
     let unreadCount  = 0;
-    let handoffShown = false;
     let dropdownOpen = false;
     let msgCount     = 0;
 
@@ -1433,11 +1570,15 @@ const STARTERS      = Array.isArray(botConfig.conversation_starters) ? botConfig
       });
 
       if (tabName === 'home') {
+        // console.log('Switching to home tab');
         homeView.classList.add('active');
+        // console.log(homeView.classList);
         messagesTabView.classList.remove('active');
         renderRecentMessages();
       } else {
-        // homeView.classList.remove('active');
+        // console.log('Switching to messages tab');
+        homeView.classList.remove('active');
+        // console.log(homeView.classList);
         messagesTabView.classList.add('active');
         renderConvoList();
       }
@@ -1518,7 +1659,7 @@ const STARTERS      = Array.isArray(botConfig.conversation_starters) ? botConfig
         return;
       }
       recentEl.style.display = 'block';
-      const recent = convos.slice(0, 3);
+      const recent = convos.slice(0, 1);
       recentEl.innerHTML = `
         <div class="bb-h-recent-header">Recent message</div>
         ${recent.map(c => {
@@ -1558,8 +1699,7 @@ const STARTERS      = Array.isArray(botConfig.conversation_starters) ? botConfig
 
       currentConvo = JSON.parse(JSON.stringify(convo)); // deep copy
       msgCount = currentConvo.messages.filter(m => m.role === 'user').length;
-      handoffShown = false;
-      handoffBanner.classList.remove('visible');
+      closeHandoffModal();
 
       clearMessagesArea();
 
@@ -1589,8 +1729,7 @@ const STARTERS      = Array.isArray(botConfig.conversation_starters) ? botConfig
 
       currentConvo = newConvo;
       msgCount = 0;
-      handoffShown = false;
-      handoffBanner.classList.remove('visible');
+      closeHandoffModal();
 
       clearMessagesArea();
       addMessage(welcome, 'bot', Date.now(), true);
@@ -1611,12 +1750,6 @@ const STARTERS      = Array.isArray(botConfig.conversation_starters) ? botConfig
       } else {
         startNewConversation();
       }
-    });
-
-    // Messages tab "New Chat" button
-    newChatTabBtn.addEventListener('click', () => {
-      if (!isOpen) openWidget();
-      startNewConversation();
     });
 
     // Home starters
@@ -1648,6 +1781,23 @@ const STARTERS      = Array.isArray(botConfig.conversation_starters) ? botConfig
     });
 
     /* ═══════════════════════════════════════════
+       EXPAND / COLLAPSE CHAT WINDOW
+    ═══════════════════════════════════════════ */
+    const expandBtn  = shadow.getElementById('bb-expand-btn');
+    let isExpanded = false;
+    const expandSVG  = `<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 3 21 3 21 9"/><polyline points="9 21 3 21 3 15"/><line x1="21" y1="3" x2="14" y2="10"/><line x1="3" y1="21" x2="10" y2="14"/></svg>`;
+    const collapseSVG = `<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="4 14 10 14 10 20"/><polyline points="20 10 14 10 14 4"/><line x1="10" y1="14" x2="3" y2="21"/><line x1="21" y1="3" x2="14" y2="10"/></svg>`;
+    if (expandBtn) {
+      expandBtn.addEventListener('click', () => {
+        isExpanded = !isExpanded;
+        win.classList.toggle('bb-expanded', isExpanded);
+        expandBtn.innerHTML = isExpanded ? collapseSVG : expandSVG;
+        expandBtn.setAttribute('title', isExpanded ? 'Collapse' : 'Expand');
+        expandBtn.setAttribute('aria-label', isExpanded ? 'Collapse chat' : 'Expand chat');
+      });
+    }
+
+    /* ═══════════════════════════════════════════
        DROPDOWN MENU
     ═══════════════════════════════════════════ */
     moreBtn.addEventListener('click', e => {
@@ -1665,21 +1815,25 @@ const STARTERS      = Array.isArray(botConfig.conversation_starters) ? botConfig
       startNewConversation();
     });
 
+    msgsNewChatBtn.addEventListener('click', () => startNewConversation());
+
     closeChatBtn.addEventListener('click', () => {
       dropdown.classList.remove('open'); dropdownOpen = false;
       closeWidget();
     });
 
     /* ═══════════════════════════════════════════
-       HUMAN HANDOFF
+       HUMAN HANDOFF MODAL
     ═══════════════════════════════════════════ */
-    talkHumanBtn.addEventListener('click', () => {
-      if (!handoffShown) { handoffBanner.classList.add('visible'); handoffShown = true; }
-      else { handoffBanner.classList.toggle('visible'); }
-    });
+    const openHandoffModal  = () => { handoffBanner.style.display = 'flex'; };
+    const closeHandoffModal = () => { handoffBanner.style.display = 'none'; };
+
+    talkHumanBtn.addEventListener('click', openHandoffModal);
+    if (handoffClose)  handoffClose.addEventListener('click',  closeHandoffModal);
+    if (handoffCancel) handoffCancel.addEventListener('click', closeHandoffModal);
 
     handoffBannerBtn.addEventListener('click', () => {
-      handoffBanner.classList.remove('visible');
+      closeHandoffModal();
       addMessage(
         'A support agent has been notified and will join shortly. Feel free to continue chatting in the meantime.',
         'bot', Date.now()
@@ -1795,16 +1949,19 @@ const STARTERS      = Array.isArray(botConfig.conversation_starters) ? botConfig
        RESOLUTION PROMPT
     ═══════════════════════════════════════════ */
     const showResolutionPrompt = (convId) => {
+      // Only show after at least 2 user messages in this conversation
+      if (msgCount < 2) return;
+
       const existing = messagesEl.querySelector('.bb-resolve-prompt');
       if (existing) existing.remove();
 
       const prompt = document.createElement('div');
       prompt.className = 'bb-resolve-prompt';
       prompt.innerHTML = `
-        <p>Did this answer your question?</p>
+        <p>Was this answer helpful?</p>
         <div class="bb-resolve-btns">
-          <button class="bb-resolve-yes" type="button">Yes, resolved ✓</button>
-          <button class="bb-resolve-no"  type="button">No, need more help</button>
+          <button class="bb-resolve-yes" type="button">Yes</button>
+          <button class="bb-resolve-no"  type="button">No</button>
         </div>
       `;
 
@@ -1813,20 +1970,55 @@ const STARTERS      = Array.isArray(botConfig.conversation_starters) ? botConfig
 
       yesBtn.addEventListener('click', async () => {
         yesBtn.disabled = true; noBtn.disabled = true;
-        prompt.innerHTML = '<p class="bb-resolve-done">Great! Glad we could help 🐝</p>';
+        prompt.innerHTML = '<p class="bb-resolve-done">Thanks for the feedback!</p>';
         if (convId) {
           try {
-            await fetch(`${API_URL}/chat/resolve`, {
+            await fetch(`${API_URL}/resolutions/mark`, {
               method: 'POST',
               headers: { 'Content-Type': 'application/json', 'x-api-key': API_KEY },
-              body: JSON.stringify({ conversation_id: convId, visitor_id: VISITOR_ID, resolved: true }),
+              body: JSON.stringify({ conversationId: convId, resolutionType: 'confirmed' }),
             });
           } catch (_) {}
         }
-        setTimeout(() => { if (prompt.parentNode) prompt.remove(); }, 3000);
+        setTimeout(() => { if (prompt.parentNode) prompt.remove(); }, 2500);
       });
 
-      noBtn.addEventListener('click', () => { if (prompt.parentNode) prompt.remove(); });
+      noBtn.addEventListener('click', () => {
+        // Replace buttons with feedback textarea
+        prompt.innerHTML = `
+          <p style="margin-bottom:8px">What could we improve?</p>
+          <textarea class="bb-resolve-textarea" placeholder="Tell us what you were looking for…" maxlength="500" rows="3"></textarea>
+          <div class="bb-resolve-btns" style="margin-top:8px">
+            <button class="bb-resolve-submit" type="button">Send feedback</button>
+            <button class="bb-resolve-skip"   type="button">Skip</button>
+          </div>
+        `;
+
+        const textarea   = prompt.querySelector('.bb-resolve-textarea');
+        const submitBtn  = prompt.querySelector('.bb-resolve-submit');
+        const skipBtn    = prompt.querySelector('.bb-resolve-skip');
+
+        skipBtn.addEventListener('click', () => { if (prompt.parentNode) prompt.remove(); });
+
+        submitBtn.addEventListener('click', async () => {
+          const text = textarea.value.trim();
+          if (!text) return;
+          submitBtn.disabled = true;
+          prompt.innerHTML = '<p class="bb-resolve-done">Thank you — we\'ll use this to improve.</p>';
+          try {
+            await fetch(`${API_URL}/resolutions/feedback`, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json', 'x-api-key': API_KEY },
+              body: JSON.stringify({
+                conversationId: convId || '',
+                visitorId: VISITOR_ID,
+                feedback: text,
+              }),
+            });
+          } catch (_) {}
+          setTimeout(() => { if (prompt.parentNode) prompt.remove(); }, 2500);
+        });
+      });
 
       messagesEl.insertBefore(prompt, typingEl);
       scrollToBottom();
