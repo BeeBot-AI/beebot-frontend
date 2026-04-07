@@ -1155,10 +1155,6 @@ textarea {
     height: 70vh;
   }
 
-  .bot-settings-grid {
-    grid-template-columns: 1fr !important;
-  }
-
   .hero-grid {
     grid-template-columns: 1fr !important;
     gap: 2rem !important;
@@ -1174,5 +1170,94 @@ textarea {
   .main-content {
     padding: 1rem 0.75rem !important;
     padding-top: 72px !important;
+  }
+}
+
+/* ─── BOT SETTINGS LAYOUT ────────────────────────── */
+.bot-settings-grid {
+  display: grid;
+  grid-template-columns: 1fr 380px;
+  gap: 2rem;
+  align-items: start;
+}
+
+@media (max-width: 1200px) {
+  .bot-settings-grid {
+    grid-template-columns: 1fr 340px;
+    gap: 1.5rem;
+  }
+}
+
+@media (max-width: 900px) {
+  .bot-settings-grid {
+    grid-template-columns: 1fr;
+    gap: 1.5rem;
+  }
+}
+
+/* ─── INSTALL TAB LAYOUT ─────────────────────────── */
+.install-top-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1.5rem;
+  align-items: start;
+}
+
+.install-mid-grid {
+  display: grid;
+  grid-template-columns: 1.1fr 1fr;
+  gap: 1.5rem;
+  align-items: start;
+}
+
+@media (max-width: 960px) {
+  .install-top-grid,
+  .install-mid-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* ─── PLAYGROUND LAYOUT ──────────────────────────── */
+.playground-layout {
+  display: grid;
+  grid-template-columns: 260px 1fr;
+  gap: 1.5rem;
+  align-items: start;
+}
+
+.playground-chat {
+  border: 1px solid var(--color-border);
+  border-radius: 16px;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  height: calc(100vh - 200px);
+  min-height: 500px;
+  background: var(--color-white);
+  box-shadow: var(--shadow-md);
+}
+
+@media (max-width: 900px) {
+  .playground-layout {
+    grid-template-columns: 1fr;
+  }
+
+  .playground-chat {
+    height: 560px;
+    min-height: 480px;
+  }
+}
+
+/* ─── PROFILE LAYOUT ─────────────────────────────── */
+.profile-layout {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1.5rem;
+  align-items: start;
+}
+
+@media (max-width: 900px) {
+  .profile-layout {
+    grid-template-columns: 1fr;
   }
 }

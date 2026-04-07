@@ -51,7 +51,7 @@ export default function PlaygroundTab({ businessId, bot, onNavigate }) {
     const primaryColor = bot?.primary_color || '#000000';
 
     return (
-        <div className="animate-fade-in" style={{ display: 'grid', gridTemplateColumns: '280px 1fr', gap: '1.5rem', height: 'calc(100vh - 120px)', alignItems: 'start' }}>
+        <div className="animate-fade-in playground-layout">
 
             {/* ── Left Panel: Settings Sidebar ─────────────────────────────── */}
             <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem', position: 'sticky', top: '1rem' }}>
@@ -109,7 +109,7 @@ export default function PlaygroundTab({ businessId, bot, onNavigate }) {
             </div>
 
             {/* ── Right Panel: Chat Window ──────────────────────────────────── */}
-            <div style={{ border: '1px solid var(--color-border)', borderRadius: '16px', overflow: 'hidden', display: 'flex', flexDirection: 'column', height: 'calc(100vh - 120px)', background: 'var(--color-white)', boxShadow: 'var(--shadow-md)' }}>
+            <div className="playground-chat">
 
                 {/* Mac-style browser chrome */}
                 <div style={{ background: '#f0f0f0', padding: '10px 14px', borderBottom: '1px solid #ddd', display: 'flex', alignItems: 'center', gap: '10px', flexShrink: 0 }}>
