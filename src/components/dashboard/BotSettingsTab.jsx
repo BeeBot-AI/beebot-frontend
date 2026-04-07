@@ -88,7 +88,7 @@ export default function BotSettingsTab({ bot }) {
     };
 
     return (
-        <div style={{ display: 'grid', gridTemplateColumns: 'min(100%, 600px) 1fr', gap: '3rem', alignItems: 'start' }} className="animate-fade-in bot-settings-grid">
+        <div className="animate-fade-in bot-settings-grid">
 
             {/* Left Column: Form */}
             <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
@@ -306,7 +306,7 @@ export default function BotSettingsTab({ bot }) {
 
             {/* Right Column: Live Widget Preview */}
             <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'flex-start' }}>
-                <div style={{ width: '100%', maxWidth: '340px', position: 'sticky', top: '2rem' }}>
+                <div style={{ width: '100%', position: 'sticky', top: '2rem' }}>
                     <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '1rem' }}>
                         <h4 className="section-title" style={{ fontSize: '1rem' }}>Live Preview</h4>
                         <span className="badge badge-success">Widget UI</span>

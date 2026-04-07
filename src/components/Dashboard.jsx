@@ -250,7 +250,7 @@ function Dashboard() {
                 businessId={businessData?._id}
               />
             } />
-            <Route path="playground" element={<PlaygroundTab businessId={businessData?._id} bot={chatbotSettings} />} />
+            <Route path="playground" element={<PlaygroundTab businessId={businessData?._id} bot={chatbotSettings} onNavigate={(tab) => navigate(`/dashboard/${tab}`)} />} />
           </Routes>
         </div>
       </main>
