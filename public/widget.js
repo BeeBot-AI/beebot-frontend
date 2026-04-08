@@ -192,6 +192,7 @@
     const PRIMARY_FG    = isColorDark(PRIMARY) ? '#ffffff' : '#111111';
     const BOT_NAME      = botConfig.bot_name        || 'BeeBot Support';
     const COMPANY_NAME  = botConfig.business_name   || BOT_NAME;
+    const BUSINESS_ID   = botConfig.business_id     || null;
     const STARTERS      = Array.isArray(botConfig.conversation_starters) ? botConfig.conversation_starters : [];
     const IS_DARK       = isColorDark(PRIMARY);
     // Auto-contrast text for home welcome section
@@ -1000,8 +1001,106 @@
       .bb-row:hover .bb-ts {
         max-height: 20px; opacity: 1; padding-top: 4px;
       }
-      .bb-row.user .bb-ts { text-align: right; align-self: flex-end; }
-      .bb-row.bot  .bb-ts { align-self: flex-start; }
+      .bb-row.user  .bb-ts { text-align: right; align-self: flex-end; }
+      .bb-row.bot   .bb-ts { align-self: flex-start; }
+      .bb-row.agent .bb-ts { align-self: flex-start; }
+
+      /* ── Input container (wraps picker + input area) ── */
+      .bb-input-container { position: relative; }
+
+      /* ── Emoji picker popup ── */
+      .bb-emoji-picker {
+        position: absolute;
+        bottom: calc(100% + 6px);
+        left: 4px;
+        width: 288px;
+        max-height: 220px;
+        overflow-y: auto;
+        background: var(--color-surface);
+        border: 1px solid var(--color-border-strong);
+        border-radius: 14px;
+        box-shadow: 0 8px 28px rgba(0,0,0,0.13);
+        padding: 8px 6px 6px;
+        z-index: 60;
+        display: grid;
+        grid-template-columns: repeat(8, 1fr);
+        gap: 1px;
+        animation: bbFadeIn 0.15s ease;
+      }
+      .bb-emoji-picker::-webkit-scrollbar { width: 4px; }
+      .bb-emoji-picker::-webkit-scrollbar-thumb { background: var(--color-surface-3); border-radius: 4px; }
+      .bb-ep-hidden { display: none !important; }
+      .bb-emoji-btn {
+        font-size: 19px; line-height: 1; padding: 5px 3px;
+        border: none; background: transparent; cursor: pointer;
+        border-radius: 7px; text-align: center; user-select: none;
+        transition: background 0.08s, transform 0.08s;
+      }
+      .bb-emoji-btn:hover { background: var(--color-surface-3); transform: scale(1.15); }
+      .bb-emoji-section-label {
+        grid-column: 1 / -1;
+        font-size: 10px; font-weight: 600;
+        color: var(--color-text-faint); text-transform: uppercase;
+        padding: 6px 4px 2px; letter-spacing: 0.05em;
+      }
+
+      /* ── Image preview bar ── */
+      .bb-img-preview-bar {
+        display: flex; align-items: center; gap: 10px;
+        padding: 8px 12px;
+        background: var(--color-surface-2);
+        border-top: 1px solid var(--color-border);
+        font-size: 12px; color: var(--color-text-muted);
+      }
+      .bb-img-preview-bar img {
+        width: 44px; height: 44px; object-fit: cover;
+        border-radius: 8px; border: 1px solid var(--color-border); flex-shrink: 0;
+      }
+      .bb-img-preview-remove {
+        margin-left: auto; width: 22px; height: 22px; border-radius: 50%;
+        border: none; background: rgba(0,0,0,0.08);
+        cursor: pointer; display: flex; align-items: center; justify-content: center;
+        color: var(--color-text-muted); font-size: 14px; line-height: 1;
+        transition: background 0.1s;
+      }
+      .bb-img-preview-remove:hover { background: rgba(0,0,0,0.15); }
+
+      /* ── Image bubble inside chat ── */
+      .bb-img-msg {
+        max-width: 190px; border-radius: 10px; overflow: hidden;
+        border: 1px solid var(--color-border);
+        box-shadow: var(--shadow-sm);
+      }
+      .bb-img-msg img { display: block; width: 100%; }
+      .bb-row.user .bb-img-msg { border: none; }
+
+      /* Agent (human) bubble — warm amber tint, distinct from bot */
+      .bb-row.agent { align-self: flex-start; }
+      .bb-row.agent .bb-bubble {
+        background: #FFFDE7;
+        color: var(--color-text);
+        border-radius: var(--radius-sm) var(--radius-lg) var(--radius-lg) var(--radius-lg);
+        border: 1px solid #FDE68A;
+      }
+      .bb-row.agent + .bb-row.agent { margin-top: var(--space-xs); }
+
+      /* System message — centered label for status events */
+      .bb-system-msg {
+        align-self: center; text-align: center;
+        font-size: 11px; color: var(--color-text-faint);
+        background: var(--color-surface-2); border: 1px solid var(--color-border);
+        border-radius: 100px; padding: 4px 12px;
+        margin: 8px 0; max-width: 80%;
+      }
+
+      /* Agent joined banner */
+      .bb-agent-banner {
+        display: flex; align-items: center; gap: 8px;
+        background: #000; color: #FFDE21;
+        padding: 8px 14px; margin: 0;
+        font-size: 12px; font-weight: 600; font-family: var(--font);
+      }
+      .bb-agent-banner svg { flex-shrink: 0; }
 
       /* Markdown */
       .bb-bubble .bb-md-p { margin: 0 0 var(--space-sm); }
@@ -1335,10 +1434,11 @@
           ` : ''}
 
           <div class="bb-home-footer">
-            <a class="bb-powered" href="https://beebot.ai" target="_blank" rel="noopener">
+            <a class="bb-powered" href="https://beebot-ai.vercel.app" target="_blank" rel="noopener">
               🐝&nbsp;Powered by BeeBot AI
             </a>
           </div>
+          
         </div>
       </div>
     `;
@@ -1415,6 +1515,12 @@
           `).join('')}
         </div>
 
+        <!-- Agent active banner (shown when human_takeover is true) -->
+        <div id="bb-agent-banner" class="bb-agent-banner" style="display:none">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+          An agent has joined — you are now chatting with a real person.
+        </div>
+
         <!-- Human handoff modal -->
         <div id="bb-handoff-overlay" style="display:none">
           <div id="bb-handoff-modal">
@@ -1431,26 +1537,35 @@
           </div>
         </div>
 
-        <div class="bb-input-area">
-          <!-- Emoji button (decorative) -->
-          <button class="bb-input-icon-btn" type="button" aria-label="Emoji" tabindex="-1">
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M8 13s1.5 2 4 2 4-2 4-2"/><line x1="9" y1="9" x2="9.01" y2="9"/><line x1="15" y1="9" x2="15.01" y2="9"/></svg>
-          </button>
-          <!-- Text input -->
-          <div class="bb-input-wrap">
-            <textarea
-              id="bb-input" class="bb-input"
-              placeholder="Ask a question…"
-              rows="1" maxlength="2000"
-              aria-label="Type your message"
-            ></textarea>
+        <div class="bb-input-container">
+          <!-- Emoji picker popup -->
+          <div id="bb-emoji-picker" class="bb-emoji-picker bb-ep-hidden" role="dialog" aria-label="Emoji picker"></div>
+          <!-- Image preview bar (shown while image is uploading) -->
+          <div id="bb-img-preview-bar" class="bb-img-preview-bar bb-ep-hidden"></div>
+
+          <div class="bb-input-area">
+            <!-- Emoji button -->
+            <button class="bb-input-icon-btn" id="bb-emoji-btn" type="button" aria-label="Emoji" title="Insert emoji">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M8 13s1.5 2 4 2 4-2 4-2"/><line x1="9" y1="9" x2="9.01" y2="9"/><line x1="15" y1="9" x2="15.01" y2="9"/></svg>
+            </button>
+            <!-- Text input -->
+            <div class="bb-input-wrap">
+              <textarea
+                id="bb-input" class="bb-input"
+                placeholder="Ask a question…"
+                rows="1" maxlength="2000"
+                aria-label="Type your message"
+              ></textarea>
+            </div>
+            <!-- Image attach button -->
+            <button class="bb-input-icon-btn" id="bb-attach-btn" type="button" aria-label="Attach image" title="Send image">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="m21.44 11.05-9.19 9.19a6 6 0 0 1-8.49-8.49l8.57-8.57A4 4 0 1 1 18 8.84l-8.59 8.57a2 2 0 0 1-2.83-2.83l8.49-8.48"/></svg>
+            </button>
+            <!-- Hidden file input -->
+            <input type="file" id="bb-file-input" accept="image/*" style="display:none" aria-hidden="true">
+            <!-- Send button -->
+            <button class="bb-send" id="bb-send" type="button" aria-label="Send message">${IC.send}</button>
           </div>
-          <!-- Attach button (decorative) -->
-          <button class="bb-input-icon-btn" type="button" aria-label="Attach file" tabindex="-1">
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="m21.44 11.05-9.19 9.19a6 6 0 0 1-8.49-8.49l8.57-8.57A4 4 0 1 1 18 8.84l-8.59 8.57a2 2 0 0 1-2.83-2.83l8.49-8.48"/></svg>
-          </button>
-          <!-- Send button -->
-          <button class="bb-send" id="bb-send" type="button" aria-label="Send message">${IC.send}</button>
         </div>
         <div class="bb-input-footer" style="padding:0 12px 8px;text-align:center">
           <a class="bb-powered" href="https://beebot-ai" target="_blank" rel="noopener">
@@ -1533,15 +1648,275 @@
     const msgsNewChatBtn   = shadow.getElementById('bb-msgs-new-chat-btn');
     const closeChatBtn     = shadow.getElementById('bb-close-chat-btn');
     const tabBtns          = shadow.querySelectorAll('.bb-tab-btn');
+    const emojiBtn         = shadow.getElementById('bb-emoji-btn');
+    const emojiPicker      = shadow.getElementById('bb-emoji-picker');
+    const attachBtn        = shadow.getElementById('bb-attach-btn');
+    const fileInput        = shadow.getElementById('bb-file-input');
+    const imgPreviewBar    = shadow.getElementById('bb-img-preview-bar');
 
     /* ── State ── */
-    let allConvos    = loadAllConvos();
-    let currentConvo = null;
-    let isOpen       = false;
-    let isBusy       = false;
-    let unreadCount  = 0;
-    let dropdownOpen = false;
-    let msgCount     = 0;
+    let allConvos      = loadAllConvos();
+    let currentConvo   = null;
+    let isOpen         = false;
+    let isBusy         = false;
+    let unreadCount    = 0;
+    let dropdownOpen   = false;
+    let msgCount       = 0;
+    let bbSocket       = null;
+    let isHumanMode    = false; // true when agent has taken over current conversation
+    const agentBanner  = shadow.getElementById('bb-agent-banner');
+
+    /* ═══════════════════════════════════════════
+       SOCKET.IO — Real-time agent communication
+    ═══════════════════════════════════════════ */
+    const addSystemMessage = (text) => {
+      const el = document.createElement('div');
+      el.className = 'bb-system-msg';
+      el.textContent = text;
+      messagesEl.insertBefore(el, typingEl);
+      scrollToBottom();
+    };
+
+    const setHumanMode = (active) => {
+      isHumanMode = active;
+      if (agentBanner) agentBanner.style.display = active ? 'flex' : 'none';
+      // Hide the "talk to human" button once agent is active — already here
+      if (talkHumanBtn) talkHumanBtn.style.display = active ? 'none' : '';
+    };
+
+    const joinConvRoom = (conversationId) => {
+      if (bbSocket && conversationId) {
+        bbSocket.emit('widget:join', { conversationId });
+      }
+    };
+
+    const initSocket = () => {
+      // Load socket.io client served by the backend at /socket.io/socket.io.js
+      if (window.__bbSocketLoaded) { connectSocket(); return; }
+      const s = document.createElement('script');
+      s.src = `${API_URL}/socket.io/socket.io.js`;
+      s.onload  = () => { window.__bbSocketLoaded = true; connectSocket(); };
+      s.onerror = () => console.warn('[BeeBot] Socket.io client failed to load — real-time features disabled.');
+      document.head.appendChild(s);
+    };
+
+    const connectSocket = () => {
+      if (!window.io) return;
+      bbSocket = window.io(API_URL, {
+        transports: ['websocket', 'polling'],
+        autoConnect: true,
+      });
+
+      // Agent has formally taken over
+      bbSocket.on('agent:joined', () => {
+        setHumanMode(true);
+        addSystemMessage('A support agent has joined the conversation.');
+        persistCurrentConvo();
+      });
+
+      // Agent sent a message
+      bbSocket.on('agent:message', ({ message }) => {
+        if (!message) return;
+        addMessage(message.content, 'agent', new Date(message.timestamp).getTime() || Date.now());
+        persistCurrentConvo();
+        if (!isOpen) {
+          unreadCount++;
+          badge.textContent = unreadCount > 9 ? '9+' : String(unreadCount);
+          badge.classList.add('visible');
+        }
+      });
+
+      // Agent is typing
+      bbSocket.on('agent:typing', ({ isTyping }) => {
+        typingEl.classList.toggle('active', isTyping);
+        if (isTyping) scrollToBottom();
+      });
+
+      // AI support resumed
+      bbSocket.on('agent:ai_resumed', () => {
+        setHumanMode(false);
+        addSystemMessage('AI support has resumed.');
+        persistCurrentConvo();
+      });
+
+      // Conversation resolved by agent
+      bbSocket.on('conversation:resolved', () => {
+        setHumanMode(false);
+        addSystemMessage('This conversation has been closed by our support team.');
+        inputEl.disabled = true;
+        sendBtn.disabled = true;
+        persistCurrentConvo();
+      });
+    };
+
+    // Start socket connection immediately
+    initSocket();
+
+    /* ═══════════════════════════════════════════
+       EMOJI PICKER
+    ═══════════════════════════════════════════ */
+    const EMOJI_SETS = [
+      { label: 'Smileys', emojis: ['😀','😃','😄','😁','😆','😅','😂','🤣','😊','😇','🙂','🙃','😉','😌','😍','🥰','😘','😋','😛','😝','😜','🤪','😎','🤩','🥳','😏','😒','😔','😟','😕','☹️','😣','😫','😩','🥺','😢','😭','😤','😠','🤬','🤯','😳','🥵','😱','😨','😰','😓','🤗','🤔','🫡','🤭'] },
+      { label: 'Gestures', emojis: ['👍','👎','👋','🤚','✋','🖐','👌','🤌','✌️','🤞','🤟','🤘','🤙','👈','👉','👆','👇','☝️','👏','🙌','🙏','💪','✍️','🫶','🤝','👐','🫰','💅','🖕'] },
+      { label: 'Hearts', emojis: ['❤️','🧡','💛','💚','💙','💜','🖤','🤍','🤎','💔','❣️','💕','💞','💓','💗','💖','💘','💝','💟','♥️','❤️‍🔥','❤️‍🩹','🫀'] },
+      { label: 'People', emojis: ['👶','🧒','👦','👧','🧑','👱','👨','🧔','👩','🧓','👴','👵','🙍','🙎','🙅','🙆','💁','🙋','🧏','🙇','🤦','🤷','💆','💇','🚶','🧍','🧎','🏃','💃','🕺','🧖','🧗','🏋️'] },
+      { label: 'Nature', emojis: ['🌸','🌺','🌻','🌹','🌷','🌼','💐','🍀','🌿','🍃','🌱','🌲','🌳','🌴','🌵','🌾','🍁','🍂','🍄','🐶','🐱','🐭','🐹','🐰','🦊','🐻','🐼','🐨','🐯','🦁','🐮','🐷','🐸','🐵','🦋','🐝','🌈','⭐','🌟','✨','💫','🌙','☀️','🌤','⛅','🌦','🌧','⛈','🌪'] },
+      { label: 'Food', emojis: ['🍎','🍊','🍋','🍇','🍓','🫐','🍑','🍒','🍍','🥭','🍕','🍔','🌮','🌯','🍜','🍣','🍱','🍰','🎂','🍩','🍪','🍫','🍬','🍭','☕','🧋','🍺','🥂','🍾','🧃','🥤'] },
+      { label: 'Objects', emojis: ['🎉','🎊','🎈','🎁','🏆','🥇','🎯','🎮','🎲','🎭','🎬','🎤','🎧','📱','💻','⌨️','📷','📹','🔑','🔒','💡','🔋','📌','📎','✏️','📝','📚','📖','🗂','💼','🔍','🔔','🔇','❓','❗','💯','♻️','✅','❌','⚡','🔥','💧','🌐','🚀','✈️','🚗','🎵'] },
+    ];
+
+    // Build the picker grid once
+    (function buildEmojiPicker() {
+      EMOJI_SETS.forEach(({ label, emojis }) => {
+        const lbl = document.createElement('div');
+        lbl.className = 'bb-emoji-section-label';
+        lbl.textContent = label;
+        emojiPicker.appendChild(lbl);
+
+        emojis.forEach(em => {
+          const btn = document.createElement('button');
+          btn.className  = 'bb-emoji-btn';
+          btn.type       = 'button';
+          btn.textContent = em;
+          btn.setAttribute('aria-label', em);
+          btn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            const start = inputEl.selectionStart ?? inputEl.value.length;
+            const end   = inputEl.selectionEnd   ?? inputEl.value.length;
+            const val   = inputEl.value;
+            inputEl.value = val.slice(0, start) + em + val.slice(end);
+            inputEl.selectionStart = inputEl.selectionEnd = start + em.length;
+            inputEl.focus();
+            autoResizeInput();
+            emojiPicker.classList.add('bb-ep-hidden');
+          });
+          emojiPicker.appendChild(btn);
+        });
+      });
+    })();
+
+    // Toggle picker on emoji button click
+    emojiBtn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      emojiPicker.classList.toggle('bb-ep-hidden');
+    });
+
+    // Close picker when clicking anywhere else inside shadow
+    shadow.addEventListener('click', (e) => {
+      if (!emojiPicker.contains(e.target) && e.target !== emojiBtn) {
+        emojiPicker.classList.add('bb-ep-hidden');
+      }
+    });
+
+    /* ═══════════════════════════════════════════
+       IMAGE UPLOAD
+    ═══════════════════════════════════════════ */
+    let pendingImageUrl = null; // URL of a staged image ready to send
+
+    attachBtn.addEventListener('click', () => {
+      if (!currentConvo) return;
+      fileInput.click();
+    });
+
+    fileInput.addEventListener('change', async () => {
+      const file = fileInput.files[0];
+      fileInput.value = '';
+      if (!file || !currentConvo) return;
+
+      // Show preview bar with thumbnail
+      const objectURL = URL.createObjectURL(file);
+      imgPreviewBar.innerHTML = `
+        <img src="${objectURL}" alt="Preview">
+        <span style="flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:12px;">${file.name}</span>
+        <button class="bb-img-preview-remove" id="bb-img-remove-btn" type="button" aria-label="Remove">✕</button>
+      `;
+      imgPreviewBar.classList.remove('bb-ep-hidden');
+
+      shadow.getElementById('bb-img-remove-btn')?.addEventListener('click', () => {
+        imgPreviewBar.classList.add('bb-ep-hidden');
+        imgPreviewBar.innerHTML = '';
+        URL.revokeObjectURL(objectURL);
+        pendingImageUrl = null;
+      });
+
+      // Upload to backend
+      try {
+        const formData = new FormData();
+        formData.append('image', file);
+        const res = await fetch(`${API_URL}/api/chat/upload-image`, {
+          method: 'POST',
+          headers: { 'x-api-key': API_KEY },
+          body: formData,
+        });
+        const data = await res.json();
+        if (res.ok && data.url) {
+          pendingImageUrl = data.url;
+          URL.revokeObjectURL(objectURL);
+          // Update preview to use the real URL
+          const previewImg = imgPreviewBar.querySelector('img');
+          if (previewImg) previewImg.src = data.url;
+        } else {
+          imgPreviewBar.classList.add('bb-ep-hidden');
+          addMessage('Image upload failed. Please try again.', 'error', Date.now());
+          pendingImageUrl = null;
+        }
+      } catch (_) {
+        imgPreviewBar.classList.add('bb-ep-hidden');
+        addMessage('Could not upload image. Check your connection.', 'error', Date.now());
+        pendingImageUrl = null;
+      }
+    });
+
+    // Send staged image as a message
+    const dispatchImageSend = async () => {
+      if (!pendingImageUrl || isBusy || !currentConvo) return;
+      const imageUrl = pendingImageUrl;
+      pendingImageUrl = null;
+      imgPreviewBar.classList.add('bb-ep-hidden');
+      imgPreviewBar.innerHTML = '';
+
+      chatStartersEl.classList.add('hidden');
+      const ts = Date.now();
+      if (msgCount === 0) {
+        addDateSeparator(new Date(ts).toLocaleDateString([], { weekday: 'long', month: 'long', day: 'numeric' }));
+      }
+
+      // Render image bubble immediately
+      addMessage(`__img__:${imageUrl}`, 'user', ts);
+      setLoading(false); // no AI spinner for images
+      msgCount++;
+
+      try {
+        const body = { query: `__img__:${imageUrl}`, visitor_id: VISITOR_ID };
+        if (currentConvo.conversationId) body.conversation_id = currentConvo.conversationId;
+
+        const res  = await fetch(`${API_URL}/api/chat`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'x-api-key': API_KEY },
+          body: JSON.stringify(body),
+        });
+        const data = await res.json();
+
+        if (data.conversation_id) {
+          const isNew = !currentConvo.conversationId;
+          currentConvo.conversationId = data.conversation_id;
+          if (isNew) joinConvRoom(data.conversation_id);
+        }
+        if (res.ok && data.response) {
+          addMessage(data.response, 'bot', Date.now());
+        }
+      } catch (_) {
+        addMessage('Could not send image. Please try again.', 'error', Date.now());
+      }
+
+      persistCurrentConvo();
+    };
+
+    // Override send button to also dispatch pending image
+    const originalSendBtnClick = () => {
+      if (pendingImageUrl) { dispatchImageSend(); return; }
+      dispatchSend();
+    };
 
     /* ═══════════════════════════════════════════
        WIDGET OPEN / CLOSE
@@ -1708,6 +2083,8 @@
       currentConvo = JSON.parse(JSON.stringify(convo)); // deep copy
       msgCount = currentConvo.messages.filter(m => m.role === 'user').length;
       closeHandoffModal();
+      setHumanMode(false); // reset — will be re-set by socket if still active
+      if (currentConvo.conversationId) joinConvRoom(currentConvo.conversationId);
 
       clearMessagesArea();
 
@@ -1840,13 +2217,26 @@
     if (handoffClose)  handoffClose.addEventListener('click',  closeHandoffModal);
     if (handoffCancel) handoffCancel.addEventListener('click', closeHandoffModal);
 
-    handoffBannerBtn.addEventListener('click', () => {
+    handoffBannerBtn.addEventListener('click', async () => {
       closeHandoffModal();
       addMessage(
         'A support agent has been notified and will join shortly. Feel free to continue chatting in the meantime.',
         'bot', Date.now()
       );
       persistCurrentConvo();
+
+      // Notify backend — flags conversation as needs_human and pushes socket
+      // event to all connected dashboard agents for this business.
+      const convId = currentConvo?.conversationId;
+      if (convId) {
+        try {
+          await fetch(`${API_URL}/api/chat/request-human`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'x-api-key': API_KEY },
+            body: JSON.stringify({ conversation_id: convId, visitor_id: VISITOR_ID }),
+          });
+        } catch (_) { /* non-fatal — agent can still take over manually */ }
+      }
     });
 
     /* ═══════════════════════════════════════════
@@ -1864,7 +2254,11 @@
       // Bubble
       const bubble = document.createElement('div');
       bubble.className = 'bb-bubble';
-      if (role === 'bot' || role === 'error') {
+      if (text.startsWith('__img__:')) {
+        const url = escapeHtml(text.slice(8));
+        bubble.className = 'bb-img-msg';
+        bubble.innerHTML = `<img src="${url}" alt="Image" loading="lazy" onerror="this.alt='Image unavailable'">`;
+      } else if (role === 'bot' || role === 'agent' || role === 'error') {
         bubble.innerHTML = renderMarkdown(text);
       } else {
         bubble.innerHTML = escapeHtml(text).replace(/\n/g, '<br>');
@@ -1914,8 +2308,10 @@
         const bubble = row.querySelector('.bb-bubble');
         const tsMeta = row.querySelector('.bb-ts span[data-ts]');
         if (!bubble || !tsMeta) return;
-        const role = row.classList.contains('user') ? 'user'
-          : row.classList.contains('error') ? 'error' : 'bot';
+        const role = row.classList.contains('user')  ? 'user'
+          : row.classList.contains('error') ? 'error'
+          : row.classList.contains('agent') ? 'agent'
+          : 'bot';
         msgs.push({
           text: bubble.innerText || bubble.textContent,
           role,
@@ -2049,7 +2445,8 @@
       }
 
       addMessage(query, 'user', ts);
-      setLoading(true);
+      // Only show AI typing indicator when not in human-agent mode
+      if (!isHumanMode) setLoading(true);
       msgCount++;
 
       try {
@@ -2064,9 +2461,18 @@
         const data = await res.json();
         setLoading(false);
 
-        if (res.ok && data.response) {
+        if (data.conversation_id) {
+          const isNew = !currentConvo.conversationId;
+          currentConvo.conversationId = data.conversation_id;
+          // Join socket room on first message (when conversationId is first known)
+          if (isNew) joinConvRoom(data.conversation_id);
+        }
+
+        if (data.human_mode) {
+          // Agent is in control — message delivered; wait for agent reply via socket
+          setLoading(false);
+        } else if (res.ok && data.response) {
           addMessage(data.response, 'bot', Date.now());
-          if (data.conversation_id) currentConvo.conversationId = data.conversation_id;
           showResolutionPrompt(currentConvo.conversationId);
           if (!isOpen) {
             unreadCount++;
@@ -2084,10 +2490,10 @@
       persistCurrentConvo();
     };
 
-    sendBtn.addEventListener('click', dispatchSend);
+    sendBtn.addEventListener('click', originalSendBtnClick);
 
     inputEl.addEventListener('keydown', e => {
-      if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); dispatchSend(); }
+      if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); originalSendBtnClick(); }
     });
 
     document.addEventListener('keydown', e => {
