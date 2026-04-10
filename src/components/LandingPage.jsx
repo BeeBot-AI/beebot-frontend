@@ -948,7 +948,7 @@ function LandingPage() {
 
           <div className="price-grid">
             {/* Free */}
-            <div className="reveal card price-card">
+            {/* <div className="reveal card price-card">
               <div className="badge badge-cream mb-4" style={{ display: 'inline-flex' }}>Free</div>
               <div style={{ display: 'flex', alignItems: 'baseline', gap: 6, marginBottom: '0.5rem' }}>
                 <span className="price-amount" style={{ color: 'var(--text-dark)' }}>$0</span>
@@ -975,10 +975,10 @@ function LandingPage() {
               <button className="btn btn-outline" style={{ width: '100%', padding: '13px', justifyContent: 'center', marginTop: '2rem', borderRadius: 'var(--radius-pill)' }} onClick={handleCTA}>
                 Get Started Free
               </button>
-            </div>
+            </div> */}
 
             {/* Pay-per-resolution */}
-            <div className="reveal reveal-d2 pro-card" style={{ background: 'var(--black)', borderRadius: 'var(--radius-xl)', position: 'relative', overflow: 'hidden', zIndex: 10, border: '1px solid rgba(255,193,7,0.3)', boxShadow: '0 30px 80px rgba(0,0,0,0.22)' }}>
+            {/* <div className="reveal reveal-d2 pro-card" style={{ background: 'var(--black)', borderRadius: 'var(--radius-xl)', position: 'relative', overflow: 'hidden', zIndex: 10, border: '1px solid rgba(255,193,7,0.3)', boxShadow: '0 30px 80px rgba(0,0,0,0.22)' }}>
               <HoneycombBg id="hc-pricing" opacity={0.09} />
               <div style={{ position: 'absolute', top: -13, left: '50%', transform: 'translateX(-50%)', background: 'linear-gradient(135deg, var(--gold-500), var(--gold-600))', color: '#000', padding: '5px 20px', borderRadius: 'var(--radius-pill)', fontSize: '0.74rem', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.07em', whiteSpace: 'nowrap', boxShadow: '0 4px 16px rgba(255,193,7,0.4)' }}>
                 ✦ Pay-per-resolution
@@ -1014,7 +1014,7 @@ function LandingPage() {
                 </button>
                 <p style={{ textAlign: 'center', fontSize: '0.78rem', color: 'rgba(255,255,255,0.3)', marginTop: '0.75rem' }}>No monthly fee · Pay only per confirmed resolution</p>
               </div>
-            </div>
+            </div> */}
           </div>
 
           {/* Pricing footnote */}
